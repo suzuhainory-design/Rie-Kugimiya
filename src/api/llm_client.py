@@ -13,6 +13,8 @@ class LLMClient:
             return await self._openai_chat(messages)
         elif self.config.provider == "anthropic":
             return await self._anthropic_chat(messages)
+        elif self.config.provider == "deepseek":
+            return await self._deepseek_chat(messages)
         elif self.config.provider == "custom":
             return await self._custom_chat(messages)
         else:
@@ -68,18 +70,47 @@ class LLMClient:
         data = response.json()
         return data["content"][0]["text"]
     
+    async def _deepseek_chat(self, messages: List[ChatMessage]) -> str:
+        """DeepSeek API (OpenAI-compatible format)"""
+        # DeepSeek使用标准的OpenAI兼容端点
+        # 官方base_url: https://api.deepseek.com
+        base_url = self.config.base_url or "https://api.deepseek.com"
+
+        payload = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content": self.config.system_prompt}
+            ] + [{"role": m.role, "content": m.content} for m in messages],
+            "stream": False
+        }
+
+        # 尝试标准OpenAI路径（带/v1）
+        url = f"{base_url}/v1/chat/completions"
+
+        response = await self.client.post(
+            url,
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {self.config.api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+
     async def _custom_chat(self, messages: List[ChatMessage]) -> str:
         # Generic OpenAI-compatible API
         if not self.config.base_url:
             raise ValueError("base_url required for custom provider")
-        
+
         payload = {
             "model": self.config.model,
             "messages": [
                 {"role": "system", "content": self.config.system_prompt}
             ] + [{"role": m.role, "content": m.content} for m in messages]
         }
-        
+
         response = await self.client.post(
             f"{self.config.base_url}/chat/completions",
             json=payload,
@@ -91,6 +122,6 @@ class LLMClient:
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"]
-    
+
     async def close(self):
         await self.client.aclose()

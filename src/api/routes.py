@@ -7,9 +7,6 @@ from ..behavior.models import BehaviorConfig
 
 router = APIRouter()
 
-# Initialize behavior coordinator (can be moved to dependency injection)
-behavior_coordinator = None
-
 def get_behavior_coordinator(request: ChatRequest) -> BehaviorCoordinator:
     """Get or create behavior coordinator with settings"""
     # Create config from request settings
@@ -20,6 +17,12 @@ def get_behavior_coordinator(request: ChatRequest) -> BehaviorCoordinator:
             enable_typo=settings.enable_typo,
             enable_recall=settings.enable_recall,
             enable_emotion_detection=settings.enable_emotion_detection,
+            use_mini_model=settings.use_mini_model,
+            mini_model_endpoint=settings.mini_model_endpoint,
+            mini_model_timeout=settings.mini_model_timeout,
+            max_segment_length=settings.max_segment_length,
+            min_pause_duration=settings.min_pause_duration,
+            max_pause_duration=settings.max_pause_duration,
             base_typo_rate=settings.base_typo_rate,
             typo_recall_rate=settings.typo_recall_rate,
         )
@@ -41,67 +44,45 @@ async def chat(request: ChatRequest):
 
         # Process message with behavior system
         coordinator = get_behavior_coordinator(request)
-        message_segments = coordinator.process_message(response_text)
+        playback = coordinator.process_message(response_text)
 
-        # Convert segments to actions
-        actions = []
-
-        for i, segment in enumerate(message_segments):
-            # Add pause before segment (if any)
-            if segment.pause_before > 0:
-                actions.append(MessageAction(
-                    type="pause",
-                    delay=segment.pause_before
-                ))
-
-            # Check if this is a typo that will be recalled
-            is_recalled = False
-            if i + 1 < len(message_segments):
-                # Check if next segment is correction (same text but no typo)
-                next_seg = message_segments[i + 1]
-                if segment.has_typo and not next_seg.has_typo:
-                    # This might be a typo-recall pair
-                    # Simple heuristic: if texts are similar, it's a correction
-                    is_recalled = True
-
-            # Show typing indicator
-            actions.append(MessageAction(
-                type="typing_start",
-                delay=0.0
-            ))
-
-            # Send message segment
-            actions.append(MessageAction(
-                type="send" if not is_recalled else "recall",
-                text=segment.text,
-                delay=0.1,  # Small delay after typing starts
-                typing_speed=segment.typing_speed,
-                metadata={
-                    "has_typo": segment.has_typo,
-                    "is_recalled": is_recalled
-                }
-            ))
-
-            # Hide typing indicator
-            actions.append(MessageAction(
-                type="typing_end",
-                delay=0.0
-            ))
+        actions = [
+            MessageAction(
+                type=action.type,
+                text=action.text,
+                duration=action.duration,
+                message_id=action.message_id,
+                target_id=action.target_id,
+                metadata=action.metadata or None,
+            )
+            for action in playback
+        ]
 
         # Get detected emotion for metadata
         emotion = coordinator.get_emotion(response_text)
+        send_count = len([a for a in playback if a.type == "send"])
 
         return ChatResponse(
             actions=actions,
             raw_response=response_text,
             metadata={
                 "emotion": emotion.value,
-                "segment_count": len(message_segments)
+                "segment_count": send_count
             }
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = {
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+        print(f"Error in chat endpoint: {error_detail}")  # Server-side logging
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(e).__name__}: {str(e)}"
+        )
 
 @router.get("/health")
 async def health_check():

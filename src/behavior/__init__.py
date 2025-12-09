@@ -9,11 +9,12 @@ This module handles natural message behaviors including:
 """
 
 from .coordinator import BehaviorCoordinator
-from .models import MessageSegment, BehaviorConfig, EmotionState
+from .models import MessageSegment, BehaviorConfig, EmotionState, PlaybackAction
 
 __all__ = [
     "BehaviorCoordinator",
     "MessageSegment",
     "BehaviorConfig",
     "EmotionState",
+    "PlaybackAction",
 ]

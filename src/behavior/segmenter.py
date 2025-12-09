@@ -1,13 +1,12 @@
 """
 Message Segmentation Module
 
-Provides interface for message segmentation with both rule-based and ML-based implementations.
-The ML implementation can be easily swapped in when the BiLSTM-CRF model is ready.
+Provides interface for message segmentation with both mini-model and rule-based implementations.
 """
-import re
 from abc import ABC, abstractmethod
-from typing import List
-import random
+from typing import List, Optional
+
+import httpx
 
 
 class BaseSegmenter(ABC):
@@ -16,7 +15,7 @@ class BaseSegmenter(ABC):
     @abstractmethod
     def segment(self, text: str) -> List[str]:
         """
-        Segment a message into natural chunks
+        Segment a message into natural chunks.
 
         Args:
             text: Input message text
@@ -24,137 +23,109 @@ class BaseSegmenter(ABC):
         Returns:
             List of text segments
         """
-        pass
+        raise NotImplementedError
 
 
 class RuleBasedSegmenter(BaseSegmenter):
     """
-    Rule-based segmenter using punctuation and length heuristics.
-    This serves as a fallback and baseline until the ML model is trained.
+    Rule-based segmenter using punctuation and dash characters.
+    This serves as a fallback and baseline until the mini model is ready.
     """
 
-    def __init__(self, max_length: int = 50):
+    def __init__(self, max_length: int = 60):
         self.max_length = max_length
-        # Common split points in Chinese/English
-        self.split_patterns = [
-            r'[。！？\.\!\?]+',  # Sentence endings
-            r'[,，、]',  # Commas
-            r'[;；]',  # Semicolons
-            r'[\s]+',  # Whitespace
-        ]
+        self.split_tokens = set("。，．,.！？!?、；;—-－")
 
     def segment(self, text: str) -> List[str]:
-        """Segment text using rules"""
-        if not text or len(text) <= self.max_length:
-            return [text] if text else []
+        """Segment text using punctuation boundaries and optional length guard."""
+        if not text:
+            return []
 
-        segments = []
-        current_pos = 0
+        segments: List[str] = []
+        buffer: List[str] = []
 
-        while current_pos < len(text):
-            # Try to find a good split point within max_length
-            end_pos = min(current_pos + self.max_length, len(text))
+        for char in text:
+            buffer.append(char)
+            should_split = char in self.split_tokens
 
-            if end_pos == len(text):
-                # Last segment
-                segments.append(text[current_pos:end_pos].strip())
-                break
+            if not should_split and len(buffer) < self.max_length:
+                continue
 
-            # Look for natural break points
-            segment_text = text[current_pos:end_pos]
-            best_split = self._find_best_split(segment_text)
+            segment = "".join(buffer).strip()
+            if segment:
+                segments.append(segment)
+            buffer = []
 
-            if best_split > 0:
-                segments.append(text[current_pos:current_pos + best_split].strip())
-                current_pos += best_split
-            else:
-                # No good split found, just use max_length
-                segments.append(segment_text.strip())
-                current_pos = end_pos
+        if buffer:
+            remaining = "".join(buffer).strip()
+            if remaining:
+                segments.append(remaining)
 
-        return [s for s in segments if s]  # Filter empty segments
-
-    def _find_best_split(self, text: str) -> int:
-        """Find the best position to split the text"""
-        # Try each pattern in order of priority
-        for pattern in self.split_patterns:
-            matches = list(re.finditer(pattern, text))
-            if matches:
-                # Use the last match (rightmost split point)
-                last_match = matches[-1]
-                return last_match.end()
-
-        return 0  # No split point found
+        return segments
 
 
-class MLSegmenter(BaseSegmenter):
+class MiniModelSegmenter(BaseSegmenter):
     """
-    ML-based segmenter using BiLSTM-CRF model (to be implemented).
-    This class provides the interface for future ML integration.
+    HTTP-based mini model caller. Expects an endpoint that returns {"segments": [...]}
     """
 
-    def __init__(self, model_path: str = None):
-        self.model_path = model_path
-        self.model = None
-        self._load_model()
-
-    def _load_model(self):
-        """Load the trained BiLSTM-CRF model"""
-        if self.model_path:
-            # TODO: Implement model loading when training is complete
-            # Example:
-            # import torch
-            # self.model = torch.load(self.model_path)
-            # self.model.eval()
-            pass
+    def __init__(self, endpoint: str, timeout: float = 2.0):
+        self.endpoint = endpoint
+        self.timeout = timeout
 
     def segment(self, text: str) -> List[str]:
-        """
-        Segment text using ML model.
-        Falls back to rule-based if model not available.
-        """
-        if self.model is None:
-            # Fallback to rule-based
-            fallback = RuleBasedSegmenter()
-            return fallback.segment(text)
+        if not text:
+            return []
 
-        # TODO: Implement ML-based segmentation
-        # Example workflow:
-        # 1. Tokenize text
-        # 2. Convert to model input format
-        # 3. Run inference
-        # 4. Extract segment boundaries from predictions
-        # 5. Split text accordingly
+        try:
+            response = httpx.post(
+                self.endpoint,
+                json={"text": text},
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            segments = payload.get("segments")
+            if not isinstance(segments, list):
+                raise ValueError("mini model response missing 'segments' list")
 
-        raise NotImplementedError("ML segmentation will be implemented after model training")
+            cleaned = [str(s).strip() for s in segments if str(s).strip()]
+            if not cleaned:
+                raise ValueError("mini model returned no usable segments")
+
+            return cleaned
+        except Exception as exc:
+            raise RuntimeError(f"Mini model segmentation failed: {exc}") from exc
 
 
 class SmartSegmenter(BaseSegmenter):
     """
-    Smart segmenter that automatically chooses between rule-based and ML-based
-    segmentation based on model availability.
+    Smart segmenter that automatically chooses between mini-model and rule-based
+    segmentation based on availability.
     """
 
-    def __init__(self, model_path: str = None, max_length: int = 50):
-        self.max_length = max_length
-        self.ml_segmenter = None
+    def __init__(
+        self,
+        max_length: int = 60,
+        use_mini_model: bool = False,
+        mini_model_endpoint: Optional[str] = None,
+        mini_model_timeout: float = 2.0,
+    ):
         self.rule_segmenter = RuleBasedSegmenter(max_length)
+        self.mini_model: Optional[MiniModelSegmenter] = None
 
-        # Try to initialize ML segmenter if model path provided
-        if model_path:
-            try:
-                self.ml_segmenter = MLSegmenter(model_path)
-                if self.ml_segmenter.model is not None:
-                    print(f"✓ ML segmenter loaded from {model_path}")
-            except Exception as e:
-                print(f"⚠ ML segmenter unavailable, using rule-based: {e}")
+        if use_mini_model and mini_model_endpoint:
+            self.mini_model = MiniModelSegmenter(
+                endpoint=mini_model_endpoint,
+                timeout=mini_model_timeout,
+            )
 
     def segment(self, text: str) -> List[str]:
-        """Use ML segmenter if available, otherwise fall back to rules"""
-        if self.ml_segmenter and self.ml_segmenter.model:
+        """Use mini model if available, otherwise fall back to rules."""
+        if self.mini_model:
             try:
-                return self.ml_segmenter.segment(text)
-            except Exception as e:
-                print(f"⚠ ML segmentation failed, falling back to rules: {e}")
+                return self.mini_model.segment(text)
+            except Exception as exc:
+                print(f"[behavior] mini model unavailable, fallback to rules: {exc}")
 
         return self.rule_segmenter.segment(text)

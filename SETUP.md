@@ -153,9 +153,6 @@ pip install -r requirements.txt
 2. Clear browser cache
 3. Check browser console for errors
 
-### Issue: No typing animation
-
-**Solution**: Make sure you're using a modern browser (Chrome, Firefox, Safari, Edge). JavaScript must be enabled.
 
 ## Development
 

@@ -203,59 +203,6 @@ body {
 }
 
 /* Typing Animation */
-.message.typing {
-    opacity: 0;
-    animation: typeIn 0.1s ease-in forwards;
-}
-
-@keyframes typeIn {
-    to {
-        opacity: 1;
-    }
-}
-
-.message-typing-text {
-    display: inline;
-}
-
-/* Typing Indicator */
-.typing-indicator {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    background: white;
-    border-radius: 12px;
-    width: fit-content;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.typing-indicator span {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #667eea;
-    margin: 0 3px;
-    animation: typingBounce 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes typingBounce {
-    0%, 60%, 100% {
-        transform: translateY(0);
-    }
-    30% {
-        transform: translateY(-10px);
-    }
-}
-
 /* Input Area */
 .input-area {
     padding: 20px;

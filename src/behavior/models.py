@@ -2,7 +2,7 @@
 Data models for behavior system
 """
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Any, Dict, Literal, Optional
 from enum import Enum
 
 
@@ -18,22 +18,34 @@ class EmotionState(str, Enum):
 
 
 class MessageSegment(BaseModel):
-    """A segment of a message with associated behaviors"""
+    """
+    A semantic unit produced by the segmenter before playback expansion.
+    Each segment becomes one or more playback actions later.
+    """
     text: str
-    pause_before: float = Field(default=0.0, description="Pause in seconds before sending this segment")
-    typing_speed: float = Field(default=0.05, description="Seconds per character for typing animation")
-    has_typo: bool = False
-    typo_position: Optional[int] = None
-    typo_char: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PlaybackAction(BaseModel):
+    """A single step in the playback timeline (send, pause, recall)."""
+    type: Literal["send", "pause", "recall"]
+    text: Optional[str] = None
+    duration: float = Field(default=0.0, ge=0.0, description="Duration in seconds for pause-like actions")
+    message_id: Optional[str] = Field(default=None, description="Identifier for the message created by this action")
+    target_id: Optional[str] = Field(default=None, description="Identifier of the message affected by this action")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class BehaviorConfig(BaseModel):
     """Configuration for behavior system"""
     # Segmentation
     enable_segmentation: bool = True
-    max_segment_length: int = 50  # Characters per segment
-    min_pause_duration: float = 0.3  # Minimum pause between segments
-    max_pause_duration: float = 2.5  # Maximum pause between segments
+    max_segment_length: int = 50  # Characters per segment (used when ML model disabled)
+    min_pause_duration: float = 0.4  # Minimum random interval between segments
+    max_pause_duration: float = 2.5  # Maximum random interval between segments
+    use_mini_model: bool = False  # Whether to try the mini segmenter model
+    mini_model_endpoint: Optional[str] = None  # HTTP endpoint for the mini segmenter
+    mini_model_timeout: float = 2.0  # Seconds before we abandon the mini model call
 
     # Typo injection
     enable_typo: bool = True
@@ -51,8 +63,8 @@ class BehaviorConfig(BaseModel):
     # Recall behavior
     enable_recall: bool = True
     typo_recall_rate: float = 0.4  # 40% chance to recall and fix typo
-    recall_delay: float = 1.5  # Seconds before recalling
-    retype_delay: float = 0.8  # Seconds before sending corrected version
+    recall_delay: float = 1.2  # Seconds before recalling
+    retype_delay: float = 0.6  # Seconds before sending corrected version
 
     # Emotion detection
     enable_emotion_detection: bool = True

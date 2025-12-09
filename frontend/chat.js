@@ -26,10 +26,10 @@ class ChatApp {
         this.chatContainer = document.getElementById('chatContainer');
         this.chatTitle = document.getElementById('chatTitle');
         this.messagesDiv = document.getElementById('messages');
-        this.typingIndicator = document.getElementById('typingIndicator');
         this.userInput = document.getElementById('userInput');
         this.sendBtn = document.getElementById('sendBtn');
         this.showConfigBtn = document.getElementById('showConfig');
+        this.messageRefs = new Map();
     }
     
     attachEventListeners() {
@@ -41,6 +41,7 @@ class ChatApp {
             const defaults = {
                 'openai': 'gpt-3.5-turbo',
                 'anthropic': 'claude-3-5-sonnet-20241022',
+                'deepseek': 'deepseek-chat',
                 'custom': 'gpt-3.5-turbo'
             };
             this.modelInput.value = defaults[this.providerSelect.value];
@@ -117,11 +118,19 @@ class ChatApp {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
         messageDiv.textContent = content;
-        
+
         if (options.recalled) {
             messageDiv.classList.add('recalled');
         }
-        
+
+        if (options.emotion) {
+            messageDiv.classList.add(`emotion-${options.emotion}`);
+        }
+
+        if (options.messageId) {
+            messageDiv.dataset.messageId = options.messageId;
+        }
+
         this.messagesDiv.appendChild(messageDiv);
         this.scrollToBottom();
         
@@ -130,15 +139,6 @@ class ChatApp {
     
     scrollToBottom() {
         this.messagesDiv.scrollTop = this.messagesDiv.scrollHeight;
-    }
-    
-    showTyping() {
-        this.typingIndicator.style.display = 'flex';
-        this.scrollToBottom();
-    }
-    
-    hideTyping() {
-        this.typingIndicator.style.display = 'none';
     }
     
     async sendMessage() {
@@ -155,9 +155,6 @@ class ChatApp {
         this.conversationHistory.push({ role: 'user', content: text });
         
         try {
-            // Show typing indicator
-            this.showTyping();
-            
             // Call API
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -176,8 +173,6 @@ class ChatApp {
             }
             
             const data = await response.json();
-            this.hideTyping();
-            
             // Play message actions
             await this.playMessageActions(data.actions);
             
@@ -188,8 +183,21 @@ class ChatApp {
             });
             
         } catch (error) {
-            this.hideTyping();
-            this.addMessage('system', `Error: ${error.message}`);
+            // Try to get more detailed error info
+            let errorMsg = error.message;
+            if (error.message.includes('API error: 500')) {
+                errorMsg = 'Server error. Please check:\n' +
+                          '1. API key is valid\n' +
+                          '2. Model name is correct\n' +
+                          '3. Network connection\n' +
+                          'Check browser console for details.';
+            } else if (error.message.includes('API error: 401')) {
+                errorMsg = 'Authentication failed. Please check your API key.';
+            } else if (error.message.includes('API error: 404')) {
+                errorMsg = 'Model not found. Please check the model name.';
+            }
+
+            this.addMessage('system', `Error: ${errorMsg}`);
             console.error('Chat error:', error);
         } finally {
             this.isProcessing = false;
@@ -200,83 +208,42 @@ class ChatApp {
     }
     
     async playMessageActions(actions) {
-        let currentMessageDiv = null;
-
         for (const action of actions) {
-            // Wait for delay
-            if (action.delay > 0) {
-                await this.sleep(action.delay * 1000);
+            if (action.duration > 0) {
+                await this.sleep(action.duration * 1000);
             }
 
             switch (action.type) {
-                case 'typing_start':
-                    this.showTyping();
-                    break;
-
-                case 'typing_end':
-                    this.hideTyping();
-                    break;
-
                 case 'pause':
-                    // Just wait (delay already handled above)
+                    // duration already awaited
                     break;
 
-                case 'send':
-                    // Create message with typing animation
-                    currentMessageDiv = await this.addMessageWithTyping(
-                        'assistant',
-                        action.text,
-                        action.typing_speed || 0.05,
-                        action.metadata
-                    );
-                    break;
+                case 'send': {
+                    const messageDiv = this.addMessage('assistant', action.text, {
+                        emotion: action.metadata?.emotion,
+                        messageId: action.message_id
+                    });
 
-                case 'recall':
-                    // Mark last message as recalled
-                    if (currentMessageDiv) {
-                        currentMessageDiv.classList.add('recalled');
-                        await this.sleep(this.config.recall_delay || 500);
+                    if (action.message_id) {
+                        this.messageRefs.set(action.message_id, messageDiv);
                     }
-
-                    // Send corrected version
-                    currentMessageDiv = await this.addMessageWithTyping(
-                        'assistant',
-                        action.text,
-                        action.typing_speed || 0.05,
-                        action.metadata
-                    );
                     break;
+                }
+
+                case 'recall': {
+                    if (action.target_id && this.messageRefs.has(action.target_id)) {
+                        const messageDiv = this.messageRefs.get(action.target_id);
+                        if (messageDiv) {
+                            messageDiv.classList.add('recalled');
+                            setTimeout(() => {
+                                messageDiv.remove();
+                            }, 200);
+                        }
+                        this.messageRefs.delete(action.target_id);
+                    }
+                    break;
+                }
             }
-        }
-    }
-
-    async addMessageWithTyping(role, content, typingSpeed = 0.05, metadata = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role}`;
-
-        // Add emotion class if available
-        if (metadata && metadata.emotion) {
-            messageDiv.classList.add(`emotion-${metadata.emotion}`);
-        }
-
-        this.messagesDiv.appendChild(messageDiv);
-        this.scrollToBottom();
-
-        // Typing animation
-        await this.typeText(messageDiv, content, typingSpeed);
-
-        return messageDiv;
-    }
-
-    async typeText(element, text, speed) {
-        element.textContent = '';
-
-        for (let i = 0; i < text.length; i++) {
-            element.textContent += text[i];
-            this.scrollToBottom();
-
-            // Wait between characters
-            await this.sleep(speed * 1000);
         }
     }
     

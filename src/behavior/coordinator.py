@@ -1,13 +1,12 @@
 """
 Behavior Coordinator
 
-Orchestrates all behavior components to create natural message patterns.
-This is the main entry point for the behavior system.
+Produces a one-shot playback sequence that mimics messaging apps such as WeChat.
 """
 from typing import List
-import random
+import uuid
 
-from .models import MessageSegment, BehaviorConfig, EmotionState
+from .models import BehaviorConfig, EmotionState, PlaybackAction
 from .segmenter import SmartSegmenter
 from .emotion import EmotionDetector
 from .typo import TypoInjector
@@ -16,129 +15,206 @@ from .pause import PausePredictor
 
 class BehaviorCoordinator:
     """
-    Coordinates message segmentation, typo injection, and recall behaviors
-    to create natural human-like message patterns.
+    Coordinates segmentation, typo injection, and recall behaviors to create the
+    final playback timeline consumed by the frontend.
     """
 
-    def __init__(self, config: BehaviorConfig = None, model_path: str = None):
-        """
-        Initialize the behavior coordinator
-
-        Args:
-            config: Behavior configuration
-            model_path: Optional path to trained segmentation model
-        """
+    def __init__(self, config: BehaviorConfig = None):
         self.config = config or BehaviorConfig()
 
-        # Initialize components
         self.segmenter = SmartSegmenter(
-            model_path=model_path,
-            max_length=self.config.max_segment_length
+            max_length=self.config.max_segment_length,
+            use_mini_model=self.config.use_mini_model,
+            mini_model_endpoint=self.config.mini_model_endpoint,
+            mini_model_timeout=self.config.mini_model_timeout,
         )
         self.emotion_detector = EmotionDetector()
         self.typo_injector = TypoInjector()
         self.pause_predictor = PausePredictor()
 
-    def process_message(self, text: str) -> List[MessageSegment]:
+    def process_message(self, text: str) -> List[PlaybackAction]:
         """
-        Process a message and generate segments with natural behaviors
-
-        Args:
-            text: Input message text
-
-        Returns:
-            List of MessageSegment objects with behaviors applied
+        Convert text into a playback sequence of send/pause/recall actions.
         """
-        # Step 1: Detect emotion
-        emotion = EmotionState.NEUTRAL
-        if self.config.enable_emotion_detection:
-            emotion = self.emotion_detector.detect(text)
+        cleaned_input = text.strip()
+        if not cleaned_input:
+            return []
 
-        # Step 2: Segment the message
-        segments_text = [text]  # Default: no segmentation
-        if self.config.enable_segmentation:
-            segments_text = self.segmenter.segment(text)
+        emotion = self._detect_emotion(cleaned_input)
+        segments = self._segment_and_postfix(cleaned_input)
+        total_segments = len(segments)
 
-        # Step 3: Process each segment
-        segments = []
-        for i, segment_text in enumerate(segments_text):
-            is_first = (i == 0)
-            is_last = (i == len(segments_text) - 1)
-
-            # Predict pause duration
-            pause = self.pause_predictor.predict(
-                segment_text,
-                emotion=emotion,
-                is_first=is_first,
-                is_last=is_last
+        actions: List[PlaybackAction] = []
+        for index, segment_text in enumerate(segments):
+            actions.extend(
+                self._build_actions_for_segment(
+                    segment_text=segment_text,
+                    segment_index=index,
+                    total_segments=total_segments,
+                    emotion=emotion,
+                )
             )
 
-            # Predict typing speed
-            typing_speed = self.pause_predictor.predict_typing_speed(emotion)
-
-            # Try to inject typo
-            has_typo = False
-            typo_text = None
-            typo_pos = None
-            original_char = None
-
-            if self.config.enable_typo:
-                # Calculate typo rate based on emotion
-                emotion_multiplier = self.config.emotion_typo_multiplier.get(
-                    emotion, 1.0
-                )
-                typo_rate = self.config.base_typo_rate * emotion_multiplier
-
-                has_typo, typo_text, typo_pos, original_char = self.typo_injector.inject_typo(
-                    segment_text,
-                    typo_rate=typo_rate
-                )
-
-            # Create segment
-            segment = MessageSegment(
-                text=segment_text,
-                pause_before=pause,
-                typing_speed=typing_speed,
-                has_typo=has_typo,
-                typo_position=typo_pos,
-                typo_char=typo_text[typo_pos] if (has_typo and typo_text and typo_pos is not None) else None
-            )
-
-            segments.append(segment)
-
-            # If typo was injected, decide whether to recall
-            if has_typo and self.config.enable_recall:
-                should_recall = self.typo_injector.should_recall_typo(
-                    self.config.typo_recall_rate
-                )
-
-                if should_recall and typo_text:
-                    # Add typo segment
-                    typo_segment = MessageSegment(
-                        text=typo_text,
-                        pause_before=pause,
-                        typing_speed=typing_speed,
-                        has_typo=True,
-                        typo_position=typo_pos,
-                        typo_char=segment.typo_char
-                    )
-                    segments[-1] = typo_segment  # Replace with typo version
-
-                    # Add corrected segment after recall delay
-                    corrected_segment = MessageSegment(
-                        text=segment_text,  # Original correct text
-                        pause_before=self.config.retype_delay,
-                        typing_speed=typing_speed,
-                        has_typo=False
-                    )
-                    segments.append(corrected_segment)
-
-        return segments
+        return actions
 
     def update_config(self, config: BehaviorConfig):
-        """Update behavior configuration"""
+        """Update behavior configuration at runtime."""
         self.config = config
 
     def get_emotion(self, text: str) -> EmotionState:
-        """Get detected emotion for text"""
+        """Expose emotion detection for API metadata."""
+        return self._detect_emotion(text)
+
+    # --------------------------------------------------------------------- #
+    # Internal helpers
+    # --------------------------------------------------------------------- #
+    def _segment_and_postfix(self, text: str) -> List[str]:
+        segments = [text]
+        if self.config.enable_segmentation:
+            try:
+                segments = self.segmenter.segment(text)
+            except Exception as exc:
+                print(f"[behavior] segmentation failed, fallback to raw text: {exc}")
+                segments = [text]
+
+        normalized = [self._apply_postfix(seg) for seg in segments]
+        normalized = [seg for seg in normalized if seg]
+
+        if not normalized:
+            fallback = self._apply_postfix(text)
+            return [fallback] if fallback else []
+
+        return normalized
+
+    def _build_actions_for_segment(
+        self,
+        segment_text: str,
+        segment_index: int,
+        total_segments: int,
+        emotion: EmotionState,
+    ) -> List[PlaybackAction]:
+        actions: List[PlaybackAction] = []
+        base_metadata = {
+            "segment_index": segment_index,
+            "total_segments": total_segments,
+            "emotion": emotion.value,
+        }
+
+        # Typo injection (if enabled)
+        has_typo, typo_text = False, None
+        if self.config.enable_typo:
+            emotion_multiplier = self.config.emotion_typo_multiplier.get(emotion, 1.0)
+            typo_rate = self.config.base_typo_rate * emotion_multiplier
+            (
+                has_typo,
+                typo_variant,
+                _,
+                _,
+            ) = self.typo_injector.inject_typo(segment_text, typo_rate=typo_rate)
+            if has_typo and typo_variant:
+                typo_text = typo_variant
+
+        send_text = typo_text or segment_text
+        send_action = PlaybackAction(
+            type="send",
+            text=send_text,
+            message_id=self._generate_message_id(),
+            metadata={
+                **base_metadata,
+                "has_typo": bool(typo_text),
+            },
+        )
+        actions.append(send_action)
+
+        if has_typo and typo_text and self.config.enable_recall:
+            if self.typo_injector.should_recall_typo(self.config.typo_recall_rate):
+                actions.extend(
+                    self._build_recall_sequence(
+                        typo_action=send_action,
+                        corrected_text=segment_text,
+                        emotion=emotion,
+                        base_metadata=base_metadata,
+                    )
+                )
+
+        # Interval after this segment (unless it's the last one)
+        if segment_index < total_segments - 1:
+            interval = self.pause_predictor.segment_interval(
+                emotion=emotion,
+                min_duration=self.config.min_pause_duration,
+                max_duration=self.config.max_pause_duration,
+            )
+            if interval > 0:
+                actions.append(
+                    PlaybackAction(
+                        type="pause",
+                        duration=interval,
+                        metadata={
+                            "reason": "segment_interval",
+                            "from_segment": segment_index,
+                            "emotion": emotion.value,
+                        },
+                    )
+                )
+
+        return actions
+
+    def _build_recall_sequence(
+        self,
+        typo_action: PlaybackAction,
+        corrected_text: str,
+        emotion: EmotionState,
+        base_metadata: dict,
+    ) -> List[PlaybackAction]:
+        recall_actions: List[PlaybackAction] = []
+
+        if self.config.recall_delay > 0:
+            recall_actions.append(
+                PlaybackAction(
+                    type="pause",
+                    duration=self.config.recall_delay,
+                    metadata={"reason": "typo_recall_delay"},
+                )
+            )
+
+        recall_actions.append(
+            PlaybackAction(
+                type="recall",
+                target_id=typo_action.message_id,
+                metadata={"reason": "typo_recall"},
+            )
+        )
+
+        if self.config.retype_delay > 0:
+            recall_actions.append(
+                PlaybackAction(
+                    type="pause",
+                    duration=self.config.retype_delay,
+                    metadata={"reason": "typo_retype_wait"},
+                )
+            )
+
+        correction_action = PlaybackAction(
+            type="send",
+            text=corrected_text,
+            message_id=self._generate_message_id(),
+            metadata={**base_metadata, "is_correction": True, "emotion": emotion.value},
+        )
+        recall_actions.append(correction_action)
+        return recall_actions
+
+    def _detect_emotion(self, text: str) -> EmotionState:
+        if not self.config.enable_emotion_detection:
+            return EmotionState.NEUTRAL
         return self.emotion_detector.detect(text)
+
+    @staticmethod
+    def _apply_postfix(text: str) -> str:
+        trimmed = text.strip()
+        while trimmed and trimmed[-1] in {",", "，", ".", "。"}:
+            trimmed = trimmed[:-1].rstrip()
+        return trimmed
+
+    @staticmethod
+    def _generate_message_id() -> str:
+        return uuid.uuid4().hex

@@ -22,13 +22,15 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 
 # Serve frontend
-frontend_dir = os.path.join(os.path.dirname(__file__), "../../frontend")
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend"))
 if os.path.exists(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
-    
+
     @app.get("/")
     async def serve_frontend():
         return FileResponse(os.path.join(frontend_dir, "index.html"))
+else:
+    print(f"Warning: Frontend directory not found at {frontend_dir}")
 
 if __name__ == "__main__":
     import uvicorn

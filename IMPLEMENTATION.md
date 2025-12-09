@@ -8,9 +8,9 @@ The system is divided into three main layers:
 
 ```
 ┌─────────────────┐
-│   Frontend UI   │  - Web interface with typing animations
-│   (HTML/CSS/JS) │  - Real-time message display
-└────────┬────────┘  - Recall effects and emotion indicators
+│   Frontend UI   │  - Web interface with WeChat-style playback
+│   (HTML/CSS/JS) │  - Sequential send/pause/recall timeline
+└────────┬────────┘  - Emotion indicators and recall removal
          │
 ┌────────▼────────┐
 │   FastAPI API   │  - REST endpoints
@@ -34,27 +34,26 @@ The system is divided into three main layers:
 
 ### 1. Message Segmentation (`src/behavior/segmenter.py`)
 
-The segmentation module provides a flexible interface that supports both rule-based and ML-based implementations:
+The segmentation module provides a flexible interface that supports both rule-based and mini-model implementations:
 
 **BaseSegmenter (Abstract Class)**
 - Defines the interface for all segmenters
 - Method: `segment(text: str) -> List[str]`
 
 **RuleBasedSegmenter**
-- Current implementation using punctuation and length heuristics
-- Splits text at natural boundaries (periods, commas, etc.)
-- Configurable max segment length
-- Serves as fallback when ML model is unavailable
+- Fallback implementation that splits on punctuation/dash characters
+- Preserves punctuation (later trimmed by postfix)
+- Enforces a soft max segment length when no punctuation is present
 
-**MLSegmenter (Placeholder)**
-- Interface ready for BiLSTM-CRF model integration
-- Will load trained model from checkpoint
-- Falls back to rule-based if model unavailable
+**MiniModelSegmenter**
+- Optional HTTP client that calls a lightweight segmentation service
+- Accepts `{ "text": "..." }` and expects `{ "segments": ["..."] }`
+- Raises an error on malformed responses so the caller can fall back
 
 **SmartSegmenter (Recommended)**
-- Automatically chooses between ML and rule-based
-- Seamlessly switches when model becomes available
-- Production-ready with fallback support
+- Automatically chooses between mini model and rule-based implementations
+- Handles failures gracefully and logs fallback reasons
+- Respects `BehaviorConfig.use_mini_model` flags and timeout settings
 
 ### 2. Emotion Detection (`src/behavior/emotion.py`)
 
@@ -77,7 +76,7 @@ The segmentation module provides a flexible interface that supports both rule-ba
 ### 3. Typo Injection (`src/behavior/typo.py`)
 
 **TypoInjector**
-- Simulates realistic typing errors
+- Simulates realistic typos
 - Supports both Chinese and English
 - Chinese: Similar character substitution
 - English: Keyboard neighbor substitution
@@ -111,13 +110,13 @@ The segmentation module provides a flexible interface that supports both rule-ba
 
 **Processing Pipeline:**
 1. Detect emotion from text
-2. Segment message into chunks
+2. Segment message into chunks and apply the postfix (trim trailing commas/periods)
 3. For each segment:
-   - Calculate pause duration
-   - Calculate typing speed
-   - Optionally inject typo
-   - Decide on recall behavior
-4. Return list of `MessageSegment` objects
+   - Optionally inject typo (and decide whether it should be recalled)
+   - Emit a `send` action (typo text first if needed)
+   - Insert recall/pause actions when a typo is fixed
+   - Append a random interval (`pause` action) before moving to the next segment
+4. Return an ordered list of playback actions (`send`/`pause`/`recall`)
 
 ## API Integration
 
@@ -140,9 +139,14 @@ The segmentation module provides a flexible interface that supports both rule-ba
         "enable_segmentation": true,
         "enable_typo": true,
         "enable_recall": true,
+        "enable_emotion_detection": true,
+        "use_mini_model": false,
+        "mini_model_endpoint": null,
+        "min_pause_duration": 0.4,
+        "max_pause_duration": 2.5,
         "base_typo_rate": 0.08,
         "typo_recall_rate": 0.4
-    }
+    },
 }
 ```
 
@@ -150,13 +154,25 @@ The segmentation module provides a flexible interface that supports both rule-ba
 ```python
 {
     "actions": [
-        {"type": "typing_start", "delay": 0.0},
-        {"type": "send", "text": "你好！", "delay": 0.1, "typing_speed": 0.05},
-        {"type": "typing_end", "delay": 0.0},
-        {"type": "pause", "delay": 0.8},
-        {"type": "typing_start", "delay": 0.0},
-        {"type": "send", "text": "今天天气不错呢", "delay": 0.1, "typing_speed": 0.05},
-        {"type": "typing_end", "delay": 0.0}
+        {
+            "type": "send",
+            "duration": 0.0,
+            "text": "你好！",
+            "message_id": "a1b2c3",
+            "metadata": {"segment_index": 0, "emotion": "happy"}
+        },
+        {
+            "type": "pause",
+            "duration": 0.8,
+            "metadata": {"reason": "segment_interval"}
+        },
+        {
+            "type": "send",
+            "duration": 0.0,
+            "text": "今天天气不错呢",
+            "message_id": "d4e5f6",
+            "metadata": {"segment_index": 1, "emotion": "happy"}
+        }
     ],
     "raw_response": "你好！今天天气不错呢",
     "metadata": {
@@ -168,49 +184,38 @@ The segmentation module provides a flexible interface that supports both rule-ba
 
 ### Message Action Types
 
-1. **typing_start**: Show typing indicator
-2. **typing_end**: Hide typing indicator
-3. **send**: Display message with typing animation
-4. **recall**: Mark previous message as recalled (strikethrough)
-5. **pause**: Wait before next action
+1. **send**: Display a chat bubble immediately (optionally track `message_id`)
+2. **pause**: Wait silently for `duration`
+3. **recall**: Remove/mark the message referenced by `target_id`
 
 ## Frontend Implementation
 
-### Typing Animation (`frontend/chat.js`)
+### Playback Timeline (`frontend/chat.js`)
 
-The frontend plays actions sequentially:
+The frontend plays the action list sequentially:
 
-1. Wait for `delay` before each action
-2. Handle each action type:
-   - `typing_start`: Show typing indicator (3 bouncing dots)
-   - `send`: Animate text character-by-character
-   - `recall`: Strike through previous message, then send correction
-   - `pause`: Silent wait (creates natural rhythm)
+1. Wait for `duration` before rendering each action.
+2. For `send` actions: append the assistant bubble and store `message_id` → DOM element mapping.
+3. For `pause` actions: do nothing—the awaited delay already created the rhythm.
+4. For `recall` actions: locate the DOM node by `target_id`, mark it as recalled, then remove it so the final history matches the post-recall state.
 
 ### Visual Features
 
-- **Typing animation**: Character-by-character reveal
-- **Typing indicator**: Animated dots while processing
-- **Recall effect**: Strikethrough + fade animation
-- **Emotion indicators**: Colored border based on detected emotion
-- **Smooth scrolling**: Auto-scroll to latest message
+- **Segment pacing**: Random pauses create natural rhythm without额外的假指示器。
+- **Recall effect**: Brief strikethrough before the bubble disappears.
+- **Emotion indicators**: Colored border based on detected emotion.
+- **Smooth scrolling**: Auto-scroll to latest message.
 
-## ML Model Integration (Future)
+## Mini Model Integration
 
-To integrate the BiLSTM-CRF segmentation model:
+When the lightweight segmentation model is ready, deploy it as an HTTP service (FastAPI/Flask/etc.) that accepts `{"text": "..."}` and responds with `{"segments": ["...", "..."]}`.
 
-1. Train the model (see `scripts/train_segmenter.py` - to be implemented)
-2. Save model checkpoint to `data/models/segmenter.pth`
-3. Update `MLSegmenter._load_model()`:
-   ```python
-   import torch
-   self.model = torch.load(self.model_path)
-   self.model.eval()
-   ```
-4. Implement `MLSegmenter.segment()` with inference logic
-5. Pass `model_path` to `BehaviorCoordinator` initialization
+1. Expose the endpoint URL (e.g., `http://127.0.0.1:9000/segment`).
+2. Configure the backend via `BehaviorConfig(use_mini_model=True, mini_model_endpoint=...)`.
+3. The `SmartSegmenter` will call the endpoint first; any error (timeout, invalid JSON, empty list) automatically falls back to the punctuation rule set.
+4. Tune `mini_model_timeout` to match deployment latency.
 
-The system will automatically use the ML model when available, with seamless fallback to rule-based segmentation.
+This keeps the front-end contract unchanged; only the segmentation quality improves when the mini model is online.
 
 ## Configuration
 

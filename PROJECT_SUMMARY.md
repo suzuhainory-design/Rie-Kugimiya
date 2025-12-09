@@ -47,7 +47,7 @@ Complete modular architecture with ML integration points:
 - ✅ **Behavior Coordinator** (`src/behavior/coordinator.py`)
   - Orchestrates all behavior components
   - Configurable pipeline
-  - MessageSegment generation with full metadata
+  - PlaybackAction timeline with full metadata
 
 #### 3. **Frontend Interface**
 
@@ -57,7 +57,7 @@ Complete modular architecture with ML integration points:
   - Real-time chat interface
 
 - ✅ **Advanced Animations**
-  - Character-by-character typing animation
+  - WeChat-style playback timeline
   - Typing indicator (3 bouncing dots)
   - Message slide-in effects
   - Recall animation (strikethrough + fade)
@@ -297,7 +297,7 @@ Rie_Kugimiya/
 │       └── config.py        # ✅ Settings management
 ├── frontend/                # ✅ Complete web interface
 │   ├── index.html           # ✅ UI structure
-│   ├── chat.js              # ✅ Enhanced with typing animation
+│   ├── chat.js              # ✅ WeChat-style playback timeline
 │   └── styles.css           # ✅ Modern, responsive styling
 ├── tests/                   # ✅ Test suite
 │   ├── __init__.py

@@ -6,10 +6,11 @@
 
 ### 已实现
 
-- 🤖 **多LLM支持** - 支持OpenAI、Anthropic及自定义OpenAI兼容API
-- 💬 **实时对话界面** - 流畅的Web聊天界面，支持打字动画
+- 🤖 **多LLM支持** - 支持OpenAI、Anthropic、DeepSeek及自定义OpenAI兼容API
+- 💬 **实时对话界面** - 流畅的Web聊天界面，支持微信式分段播放
 - ⚙️ **灵活配置** - 可自定义API密钥、模型、系统提示词等
 - 💾 **本地存储** - 自动保存配置，无需重复输入
+- 🇨🇳 **国内优化** - DeepSeek支持，国内访问快速稳定
 
 ### 开发中
 
@@ -33,7 +34,7 @@
 └────────┬────────┘
          │
 ┌────────▼────────┐
-│  Frontend UI    │  消息播放器 + 动画效果
+│  Frontend UI    │  微信式分段播放 + 撤回演示
 └─────────────────┘
 ```
 
@@ -42,7 +43,7 @@
 **前端**
 
 - 原生HTML + CSS + JavaScript
-- 流畅的消息动画和打字效果
+- 流畅的消息播放和撤回演示效果
 
 **后端**
 
@@ -85,9 +86,13 @@ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 在配置面板中填入：
 
-- **Provider**: 选择OpenAI/Anthropic/Custom
+- **Provider**: 选择 OpenAI/Anthropic/DeepSeek/Custom
+  - 🌟 **推荐国内用户**: DeepSeek (快速、便宜、中文好)
 - **API Key**: 你的API密钥
-- **Model**: 模型名称 (如 `gpt-3.5-turbo`)
+- **Model**: 模型名称
+  - DeepSeek: `deepseek-chat`
+  - OpenAI: `gpt-3.5-turbo`
+  - Anthropic: `claude-3-5-sonnet-20241022`
 - **System Prompt**: 角色设定提示词
 - **Character Name**: 角色名称
 

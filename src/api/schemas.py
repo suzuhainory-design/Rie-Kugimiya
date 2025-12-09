@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
 
 class LLMConfig(BaseModel):
-    provider: Literal["openai", "anthropic", "custom"] = "openai"
+    provider: Literal["openai", "anthropic", "deepseek", "custom"] = "openai"
     api_key: str
     base_url: Optional[str] = None
     model: str = "gpt-3.5-turbo"
@@ -19,6 +19,12 @@ class BehaviorSettings(BaseModel):
     enable_typo: bool = True
     enable_recall: bool = True
     enable_emotion_detection: bool = True
+    use_mini_model: bool = False
+    mini_model_endpoint: Optional[str] = None
+    mini_model_timeout: float = Field(default=2.0, gt=0.0)
+    max_segment_length: int = Field(default=60, gt=0)
+    min_pause_duration: float = Field(default=0.4, ge=0.0)
+    max_pause_duration: float = Field(default=2.5, ge=0.0)
     base_typo_rate: float = Field(default=0.08, ge=0.0, le=1.0)
     typo_recall_rate: float = Field(default=0.4, ge=0.0, le=1.0)
 
@@ -30,12 +36,13 @@ class ChatRequest(BaseModel):
 
 class MessageAction(BaseModel):
     """
-    A single message action (send, recall, typing, etc.)
+    A single playback action (send, recall, pause)
     """
-    type: Literal["typing_start", "typing_end", "send", "recall", "pause"]
-    text: Optional[str] = None  # Text content for 'send' and 'recall' actions
-    delay: float = Field(default=0.0, description="Delay in seconds before this action")
-    typing_speed: Optional[float] = Field(default=None, description="Typing speed for animation (seconds per char)")
+    type: Literal["send", "recall", "pause"]
+    text: Optional[str] = None  # Text content for 'send' actions
+    duration: float = Field(default=0.0, ge=0.0, description="Duration in seconds for this action")
+    message_id: Optional[str] = Field(default=None, description="Unique id for send actions")
+    target_id: Optional[str] = Field(default=None, description="Target message id for recall actions")
     metadata: Optional[dict] = Field(default=None, description="Additional metadata (e.g., emotion, has_typo)")
 
 class ChatResponse(BaseModel):

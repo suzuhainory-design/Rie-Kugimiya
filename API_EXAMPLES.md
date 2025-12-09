@@ -77,6 +77,30 @@ result = asyncio.run(chat_with_openai())
 print(result)
 ```
 
+### DeepSeek (推荐国内用户)
+
+```python
+async def chat_with_deepseek():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/chat",
+            json={
+                "llm_config": {
+                    "provider": "deepseek",
+                    "api_key": "sk-...",
+                    "model": "deepseek-chat",
+                    "system_prompt": "你是一个可爱的虚拟角色。"
+                },
+                "messages": [
+                    {"role": "user", "content": "你好！"}
+                ]
+            }
+        )
+        return response.json()
+
+result = asyncio.run(chat_with_deepseek())
+```
+
 ### Anthropic (Claude)
 
 ```python
@@ -132,59 +156,39 @@ async def chat_with_custom():
 {
   "actions": [
     {
-      "type": "typing_start",
-      "delay": 0.0,
-      "text": null,
-      "typing_speed": null,
-      "metadata": null
-    },
-    {
       "type": "send",
-      "delay": 0.1,
+      "duration": 0.0,
       "text": "你好呀！",
-      "typing_speed": 0.04,
+      "message_id": "3b4f1c4824f342958eba8b1b64f7d339",
+      "target_id": null,
       "metadata": {
-        "has_typo": false,
-        "is_recalled": false
+        "emotion": "happy",
+        "segment_index": 0,
+        "total_segments": 2
       }
-    },
-    {
-      "type": "typing_end",
-      "delay": 0.0,
-      "text": null,
-      "typing_speed": null,
-      "metadata": null
     },
     {
       "type": "pause",
-      "delay": 0.8,
+      "duration": 0.9,
       "text": null,
-      "typing_speed": null,
-      "metadata": null
-    },
-    {
-      "type": "typing_start",
-      "delay": 0.0,
-      "text": null,
-      "typing_speed": null,
-      "metadata": null
-    },
-    {
-      "type": "send",
-      "delay": 0.1,
-      "text": "今天过得怎么样？",
-      "typing_speed": 0.045,
+      "message_id": null,
+      "target_id": null,
       "metadata": {
-        "has_typo": false,
-        "is_recalled": false
+        "reason": "segment_interval",
+        "emotion": "happy"
       }
     },
     {
-      "type": "typing_end",
-      "delay": 0.0,
-      "text": null,
-      "typing_speed": null,
-      "metadata": null
+      "type": "send",
+      "duration": 0.0,
+      "text": "今天过得怎么样？",
+      "message_id": "a81c8d0e3e324ce1b0579b71349f3355",
+      "target_id": null,
+      "metadata": {
+        "emotion": "happy",
+        "segment_index": 1,
+        "total_segments": 2
+      }
     }
   ],
   "raw_response": "你好呀！今天过得怎么样？",
@@ -201,44 +205,53 @@ async def chat_with_custom():
 {
   "actions": [
     {
-      "type": "typing_start",
-      "delay": 0.0
-    },
-    {
-      "type": "recall",
-      "delay": 0.1,
+      "type": "send",
+      "duration": 0.0,
       "text": "你号！",
-      "typing_speed": 0.05,
+      "message_id": "d40e61c6d56f434aab786c6fbbd4f122",
+      "target_id": null,
       "metadata": {
-        "has_typo": true,
-        "is_recalled": true
+        "emotion": "neutral",
+        "segment_index": 0,
+        "total_segments": 1,
+        "has_typo": true
       }
-    },
-    {
-      "type": "typing_end",
-      "delay": 0.0
     },
     {
       "type": "pause",
-      "delay": 0.8
-    },
-    {
-      "type": "typing_start",
-      "delay": 0.0
-    },
-    {
-      "type": "send",
-      "delay": 0.1,
-      "text": "你好！",
-      "typing_speed": 0.05,
+      "duration": 1.2,
       "metadata": {
-        "has_typo": false,
-        "is_recalled": false
+        "reason": "typo_recall_delay"
       }
     },
     {
-      "type": "typing_end",
-      "delay": 0.0
+      "type": "recall",
+      "duration": 0.0,
+      "message_id": null,
+      "target_id": "d40e61c6d56f434aab786c6fbbd4f122",
+      "metadata": {
+        "reason": "typo_recall"
+      }
+    },
+    {
+      "type": "pause",
+      "duration": 0.6,
+      "metadata": {
+        "reason": "typo_retype_wait"
+      }
+    },
+    {
+      "type": "send",
+      "duration": 0.0,
+      "text": "你好！",
+      "message_id": "f96705410e7b49c585e453048a98b1ce",
+      "target_id": null,
+      "metadata": {
+        "emotion": "neutral",
+        "segment_index": 0,
+        "total_segments": 1,
+        "is_correction": true
+      }
     }
   ],
   "raw_response": "你好！",
@@ -369,23 +382,19 @@ async function sendMessage(text) {
 
   // Play actions sequentially
   for (const action of data.actions) {
-    if (action.delay > 0) {
-      await sleep(action.delay * 1000);
+    if (action.duration > 0) {
+      await sleep(action.duration * 1000);
     }
 
     switch (action.type) {
-      case 'typing_start':
-        showTypingIndicator();
-        break;
-      case 'typing_end':
-        hideTypingIndicator();
+      case 'pause':
+        // Nothing to render, the await above already handles timing.
         break;
       case 'send':
-        await displayMessageWithTyping(action.text, action.typing_speed);
+        appendMessage(action.text, { id: action.message_id });
         break;
       case 'recall':
-        markLastAsRecalled();
-        await displayMessageWithTyping(action.text, action.typing_speed);
+        removeMessage(action.target_id);
         break;
     }
   }

@@ -1,96 +1,50 @@
 """
-Pause Duration Prediction Module
+Interval Prediction Module
 
-Predicts natural pause durations between message segments.
-Currently uses heuristics, can be replaced with ML model.
+Generates random-but-bounded intervals between playback actions.
 """
 import random
 from .models import EmotionState
 
 
 class PausePredictor:
-    """Predict pause durations between message segments"""
+    """Generate intervals to space out playback actions."""
 
     def __init__(self):
-        # Base pause ranges by emotion (in seconds)
-        self.emotion_pause_ranges = {
-            EmotionState.NEUTRAL: (0.5, 1.2),
-            EmotionState.HAPPY: (0.3, 0.8),
-            EmotionState.EXCITED: (0.2, 0.6),
-            EmotionState.SAD: (0.8, 2.0),
-            EmotionState.ANGRY: (0.3, 1.0),
-            EmotionState.ANXIOUS: (0.4, 1.5),
-            EmotionState.CONFUSED: (0.6, 1.5),
+        # Emotion multipliers keep some personality in the pauses
+        self.emotion_intervals = {
+            EmotionState.NEUTRAL: 1.0,
+            EmotionState.HAPPY: 0.9,
+            EmotionState.EXCITED: 0.8,
+            EmotionState.SAD: 1.2,
+            EmotionState.ANGRY: 0.9,
+            EmotionState.ANXIOUS: 1.1,
+            EmotionState.CONFUSED: 1.1,
         }
 
-    def predict(
+    def segment_interval(
         self,
-        segment_text: str,
         emotion: EmotionState = EmotionState.NEUTRAL,
-        is_first: bool = False,
-        is_last: bool = False
+        min_duration: float = 0.4,
+        max_duration: float = 2.5,
     ) -> float:
         """
-        Predict pause duration before sending a segment
-
-        Args:
-            segment_text: The text segment
-            emotion: Current emotion state
-            is_first: Whether this is the first segment
-            is_last: Whether this is the last segment
-
-        Returns:
-            Pause duration in seconds
-        """
-        # No pause before first segment
-        if is_first:
-            return 0.0
-
-        # Get base pause range for emotion
-        min_pause, max_pause = self.emotion_pause_ranges.get(
-            emotion,
-            (0.5, 1.2)
-        )
-
-        # Add randomness
-        base_pause = random.uniform(min_pause, max_pause)
-
-        # Adjust based on segment length (longer text = slightly longer pause)
-        length_factor = min(len(segment_text) / 30, 1.5)
-        pause = base_pause * length_factor
-
-        # Last segment might have slightly longer pause (user "thinking")
-        if is_last:
-            pause *= random.uniform(1.0, 1.3)
-
-        # Ensure within reasonable bounds
-        return max(0.2, min(pause, 3.0))
-
-    def predict_typing_speed(
-        self,
-        emotion: EmotionState = EmotionState.NEUTRAL
-    ) -> float:
-        """
-        Predict typing speed (seconds per character)
+        Produce a random interval between two outgoing messages.
 
         Args:
             emotion: Current emotion state
+            min_duration: Minimum pause duration in seconds
+            max_duration: Maximum pause duration in seconds
 
         Returns:
-            Seconds per character
+            Interval duration in seconds
         """
-        # Base typing speeds by emotion
-        emotion_speeds = {
-            EmotionState.NEUTRAL: 0.05,
-            EmotionState.HAPPY: 0.04,
-            EmotionState.EXCITED: 0.03,
-            EmotionState.SAD: 0.07,
-            EmotionState.ANGRY: 0.04,
-            EmotionState.ANXIOUS: 0.06,
-            EmotionState.CONFUSED: 0.06,
-        }
+        if max_duration < min_duration:
+            min_duration, max_duration = max_duration, min_duration
 
-        base_speed = emotion_speeds.get(emotion, 0.05)
+        base = random.uniform(max(0.0, min_duration), max_duration)
+        multiplier = self.emotion_intervals.get(emotion, 1.0)
+        interval = base * multiplier
 
-        # Add slight randomness
-        return base_speed * random.uniform(0.9, 1.1)
+        # Clamp to non-negative range
+        return round(max(0.0, interval), 3)

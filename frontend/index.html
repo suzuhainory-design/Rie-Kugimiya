@@ -18,7 +18,8 @@
                 <label>LLM Provider</label>
                 <select id="provider">
                     <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="deepseek">DeepSeek</option>
                     <option value="custom">Custom (OpenAI-compatible)</option>
                 </select>
             </div>
@@ -60,10 +61,6 @@
             </div>
 
             <div class="messages" id="messages"></div>
-
-            <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                <span></span><span></span><span></span>
-            </div>
 
             <div class="input-area">
                 <input type="text" id="userInput" placeholder="Type your message..." disabled>

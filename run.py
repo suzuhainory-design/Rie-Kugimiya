@@ -12,18 +12,17 @@ if __name__ == "__main__":
     from src.api.main import app
 
     print("=" * 60)
-    print("🎭 Rie Kugimiya Virtual Character System")
+    print("Rie Kugimiya Virtual Character System")
     print("=" * 60)
-    print("\n📝 Features:")
-    print("  ✓ Multi-LLM support (OpenAI/Anthropic/Custom)")
-    print("  ✓ Natural message segmentation")
-    print("  ✓ Emotion-based behavior")
-    print("  ✓ Typo injection & recall")
-    print("  ✓ Typing animations")
-    print("\n🚀 Starting server...")
-    print("📍 URL: http://localhost:8000")
-    print("⚙️  API: http://localhost:8000/api/health")
-    print("\n⏹  Press Ctrl+C to stop\n")
+    print("\nKey Features:")
+    print("  - Multi-LLM support (OpenAI/Anthropic/Custom)")
+    print("  - WeChat-style playback timeline (send/pause/recall)")
+    print("  - Mini-model segmentation with punctuation fallback")
+    print("  - Emotion-driven typo and recall behavior")
+    print("\nStarting server...")
+    print("URL: http://localhost:8000")
+    print("API: http://localhost:8000/api/health")
+    print("\nPress Ctrl+C to stop\n")
     print("=" * 60)
 
     uvicorn.run(
