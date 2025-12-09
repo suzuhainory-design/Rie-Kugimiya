@@ -7,14 +7,14 @@ class LLMConfig(BaseModel):
     api_key: str
     base_url: Optional[str] = None
     model: str = "gpt-3.5-turbo"
-    system_prompt: str = "You are a helpful assistant."  # Treated as character/role prompt
+    persona: str = "You are a helpful assistant."  # Character personality and behavior
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str
 
 class BehaviorSettings(BaseModel):
-    """Settings for message behavior system"""
+    """Settings for message behavior engine"""
     enable_segmentation: bool = True
     enable_typo: bool = True
     enable_recall: bool = True
@@ -28,7 +28,7 @@ class BehaviorSettings(BaseModel):
 class ChatRequest(BaseModel):
     llm_config: LLMConfig
     messages: List[ChatMessage]
-    character_name: str = "Rie"
+    character_name: str = "Rin"
     conversation_id: str = "default"
     behavior_settings: Optional[BehaviorSettings] = None
 

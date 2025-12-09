@@ -31,7 +31,7 @@ class LLMClient:
         self.config = config
         self.client = httpx.AsyncClient(timeout=60.0)
 
-    async def chat(self, messages: List[ChatMessage], character_name: str = "Rie") -> LLMStructuredResponse:
+    async def chat(self, messages: List[ChatMessage], character_name: str = "Rin") -> LLMStructuredResponse:
         if self.config.provider == "openai":
             raw = await self._openai_chat(messages, character_name)
         elif self.config.provider == "anthropic":
@@ -153,11 +153,12 @@ class LLMClient:
         ]
 
     def _build_system_block(self, character_name: str) -> str:
-        persona_name = character_name or "Rie"
-        persona_line = ""
-        if self.config.system_prompt:
-            persona_line = f"\n角色设定：{self.config.system_prompt.strip()}"
-        return f"{SYSTEM_BEHAVIOR_PROMPT}\n角色名：{persona_name}{persona_line}"
+        """Build complete system prompt from behavior rules and character persona"""
+        char_name = character_name or "Rin"
+        persona_section = ""
+        if self.config.persona:
+            persona_section = f"\n角色设定：{self.config.persona.strip()}"
+        return f"{SYSTEM_BEHAVIOR_PROMPT}\n角色名：{char_name}{persona_section}"
 
     def _parse_structured_response(self, raw_text: str) -> Dict[str, Any]:
         """

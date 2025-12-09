@@ -1,6 +1,6 @@
 # Implementation Guide
 
-This document explains the implementation of the Rie Kugimiya virtual character system, focusing on the behavior simulation architecture.
+This document explains the implementation of the Yuzuriha Rin virtual character system, focusing on the behavior simulation architecture.
 
 ## Architecture Overview
 
@@ -46,8 +46,8 @@ The segmentation module now relies purely on rule-based logic (no mini model dep
 - Enforces a soft max segment length when no punctuation is present
 
 **SmartSegmenter (Recommended)**
-- Thin wrapper around `RuleBasedSegmenter`
-- Kept for future extension if a new upstream LLM-based segmenter is added
+- Currently uses `RuleBasedSegmenter` internally
+- Provides consistent API for segmentation
 
 ### 2. Emotion Interpretation (`src/behavior/emotion.py`)
 
@@ -90,9 +90,9 @@ The segmentation module now relies purely on rule-based logic (no mini model dep
 - First/last segment handling
 
 **Pause Factors:**
-- Emotion state (excited = faster, sad = slower)
+- Emotion state (excited = faster, sad/anxious = slower)
 - Segment length (longer text = slightly longer pause)
-- Position (last segment may have longer pause)
+- Position (first/last segment handling with variation)
 
 ### 5. Behavior Coordinator (`src/behavior/coordinator.py`)
 
@@ -194,10 +194,11 @@ The frontend plays the action list sequentially:
 
 ### Visual Features
 
-- **Segment pacing**: Random pauses create natural rhythm without额外的假指示器。
-- **Recall effect**: Brief strikethrough before the bubble disappears.
-- **Emotion indicators**: Colored border based on detected emotion.
-- **Smooth scrolling**: Auto-scroll to latest message.
+- **Segment pacing**: Random pauses create natural rhythm without fake typing indicators
+- **Recall effect**: Brief strikethrough before the bubble disappears
+- **Emotion indicators**: Dynamic theme colors based on detected emotion map
+- **Smooth scrolling**: Auto-scroll to latest message
+- **Typing status**: Realistic "typing..." indicator with hesitation simulation
 
 ## LLM JSON Contract
 
@@ -211,7 +212,7 @@ The LLM is instructed via a fixed system prompt to respond **only** with JSON:
 ```
 
 - `emotion`: dictionary of emotion → intensity (`low|medium|high|extreme`)
-- `reply`: short, WeChat-style message without旁白/内心戏
+- `reply`: short, WeChat-style message without narration or inner thoughts
 - The frontend prompt is treated as persona text; the backend injects history + system prompt automatically.
 
 ## Configuration
@@ -271,10 +272,12 @@ Tests cover:
    - Modify `BehaviorConfig` in `routes.py`
    - Or send custom settings in API requests
 
-## Next Steps
+## Future Enhancements
 
-- [ ] Implement BiLSTM-CRF model training
-- [ ] Add more sophisticated emotion detection (sentiment analysis model)
-- [ ] Implement conversation history analysis for consistent behavior
-- [ ] Add user preferences for behavior intensity
-- [ ] Performance optimization for real-time processing
+- [ ] Multi-character conversation support
+- [ ] Conversation history persistence
+- [ ] Character preset library
+- [ ] Extended emotion types (shy, embarrassed, surprised, playful, etc.)
+- [ ] User-adjustable behavior intensity settings
+- [ ] Performance optimization for high-concurrency scenarios
+- [ ] Mobile responsive design
