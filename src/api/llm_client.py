@@ -19,7 +19,7 @@ SYSTEM_BEHAVIOR_PROMPT = """
 2) 允许的 emotion keys（请只用以下之一，可多选）：neutral, happy, excited, sad, angry, anxious, confused, shy, embarrassed, surprised, playful, affectionate, tired, bored, serious, caring
 3) emotion 字典的取值必须是 low / medium / high / extreme
 4) reply 是要发送给对方的微信消息，不要包含内心活动、动作描述、旁白或格式化符号，长度保持简短，像真人打字
-5) 角色设定将由系统补充，请在生成 reply 时完全遵守角色设定的人设，同时尽力模仿真人微信对话风格
+5) 角色设定将在下文补充，请在生成 reply 时完全遵守角色设定的人设，同时尽力模仿真人微信对话风格
 6) 使用聊天历史保持上下文连贯，永远只返回 JSON，切勿输出解释或多余文本
 """.strip()
 
@@ -202,8 +202,8 @@ class LLMClient:
         char_name = character_name or "Rin"
         persona_section = ""
         if self.config.persona:
-            persona_section = f"\n角色设定：{self.config.persona.strip()}"
-        return f"{SYSTEM_BEHAVIOR_PROMPT}\n角色名：{char_name}{persona_section}"
+            persona_section = f"\n角色设定：【{self.config.persona.strip()}】"
+        return f"{SYSTEM_BEHAVIOR_PROMPT}\n{persona_section}"
 
     def _parse_structured_response(self, raw_text: str) -> Dict[str, Any]:
         """

@@ -88,7 +88,8 @@
                             </div>
                             <div class="punch-hole" aria-hidden="true"></div>
                             <div class="status-right">
-                                <img src="/static/assets/signal.svg" alt="Signal" class="status-icon status-icon-signal">
+                                <img src="/static/assets/signal.svg" alt="Signal"
+                                    class="status-icon status-icon-signal">
                                 <img src="/static/assets/wifi.svg" alt="WiFi" class="status-icon status-icon-wifi">
                                 <img src="/static/assets/battery.svg" alt="Battery" class="status-icon battery-icon">
                                 <span class="battery-percent">100%</span>
@@ -110,6 +111,10 @@
 
                     <div class="wechat-main">
                         <div class="messages" id="messages"></div>
+                        <button class="new-message-indicator" id="newMessageBtn" type="button" aria-label="新消息提醒">
+                            <span class="indicator-icon" aria-hidden="true"></span>
+                            <span class="indicator-text" id="newMessageText">1 条新消息</span>
+                        </button>
                         <div class="typing-hint" id="typingHint">对方正在输入...</div>
                     </div>
 

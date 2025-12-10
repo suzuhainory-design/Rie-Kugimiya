@@ -9,6 +9,8 @@ class ChatApp {
         this.lastSyncTimestamp = this.getLastSyncTimestamp();
         this.defaults = null;
         this.emotionState = this.loadEmotionState();
+        this.newMessageCount = 0;
+        this.isUserNearBottom = true;
 
         this.initElements();
         this.attachEventListeners();
@@ -120,6 +122,8 @@ class ChatApp {
         this.plusBtn = document.querySelector('.plus-btn');
         this.debugLogPanel = document.getElementById('debugLogPanel');
         this.debugLogContent = document.getElementById('debugLogContent');
+        this.newMessageBtn = document.getElementById('newMessageBtn');
+        this.newMessageText = document.getElementById('newMessageText');
 
         this.defaultTitle = this.chatTitle.textContent || 'Rin';
         this.debugMode = false;
@@ -205,6 +209,15 @@ class ChatApp {
                 this.syncMessages();
             }
         });
+
+        this.messagesDiv.addEventListener('scroll', () => this.handleMessagesScroll());
+
+        if (this.newMessageBtn) {
+            this.newMessageBtn.addEventListener('click', () => {
+                this.scrollToBottom({ smooth: true });
+                this.resetNewMessageIndicator();
+            });
+        }
     }
 
     async initializeConfig() {
@@ -370,7 +383,8 @@ class ChatApp {
                 const messageDiv = this.addMessage(role, msg.content, {
                     messageId: msg.id,
                     emotion: msg.metadata?.emotion,
-                    skipSave: true
+                    skipSave: true,
+                    skipIndicator: true
                 });
                 this.messageRefs.set(msg.id, messageDiv);
             } else if (msg.type === 'recall_event') {
@@ -385,6 +399,8 @@ class ChatApp {
         }
 
         this.restoreEmotionTheme();
+        this.resetNewMessageIndicator();
+        this.scrollToBottom();
     }
 
     connectWebSocket() {
@@ -583,9 +599,11 @@ class ChatApp {
         this.lastSyncTimestamp = 0;
         this.saveLocalMessages();
         this.clearEmotionTheme({ resetState: true });
+        this.resetNewMessageIndicator();
     }
 
     addMessage(role, content, options = {}) {
+        const shouldStickToBottom = this.isNearBottom();
         const row = document.createElement('div');
         row.className = `message-row ${role}`;
 
@@ -619,12 +637,68 @@ class ChatApp {
         }
 
         this.messagesDiv.appendChild(row);
-        this.scrollToBottom();
+        this.handleAfterMessageAdded({
+            role,
+            shouldStickToBottom,
+            skipIndicator: options.skipIndicator
+        });
         return row;
     }
 
-    scrollToBottom() {
-        this.messagesDiv.scrollTop = this.messagesDiv.scrollHeight;
+    handleAfterMessageAdded({ role, shouldStickToBottom, skipIndicator }) {
+        if (shouldStickToBottom) {
+            this.scrollToBottom();
+            return;
+        }
+
+        this.isUserNearBottom = false;
+
+        if (!skipIndicator && role !== 'user') {
+            this.bumpNewMessageIndicator();
+        }
+    }
+
+    scrollToBottom(options = {}) {
+        if (!this.messagesDiv) return;
+
+        const behavior = options.smooth ? 'smooth' : 'auto';
+        this.messagesDiv.scrollTo({
+            top: this.messagesDiv.scrollHeight,
+            behavior
+        });
+        this.isUserNearBottom = true;
+        this.resetNewMessageIndicator();
+    }
+
+    isNearBottom(threshold = 36) {
+        if (!this.messagesDiv) return true;
+
+        const distance = this.messagesDiv.scrollHeight - (this.messagesDiv.scrollTop + this.messagesDiv.clientHeight);
+        return distance <= threshold;
+    }
+
+    handleMessagesScroll() {
+        const nearBottom = this.isNearBottom();
+        this.isUserNearBottom = nearBottom;
+
+        if (nearBottom) {
+            this.resetNewMessageIndicator();
+        }
+    }
+
+    bumpNewMessageIndicator() {
+        if (!this.newMessageBtn || !this.newMessageText) return;
+
+        this.newMessageCount += 1;
+        this.newMessageText.textContent = `${this.newMessageCount} 条新消息`;
+        this.newMessageBtn.classList.add('show');
+    }
+
+    resetNewMessageIndicator() {
+        this.newMessageCount = 0;
+        if (this.newMessageBtn) {
+            this.newMessageBtn.classList.remove('show');
+        }
     }
 
     sendMessage() {
