@@ -15,6 +15,13 @@ body {
     overflow: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
 .app-container {
     width: 100vw;
     height: 100vh;
