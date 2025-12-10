@@ -1,10 +1,11 @@
 """
 Basic tests for behavior system
 """
+
 import pytest
 
 from src.behavior import BehaviorCoordinator
-from src.behavior.emotion import EmotionDetector
+from src.behavior.emotion import EmotionFetcher
 from src.behavior.models import BehaviorConfig, EmotionState
 from src.behavior.segmenter import RuleBasedSegmenter
 from src.behavior.typo import TypoInjector
@@ -34,22 +35,22 @@ class TestSegmenter:
 
 class TestEmotionDetector:
     def test_basic_emotion_detection(self):
-        detector = EmotionDetector()
+        detector = EmotionFetcher()
         emotion_map = {
             "happy": "medium",
             "excited": "high",
             "sad": "low",
         }
-        assert detector.detect(emotion_map) == EmotionState.EXCITED
+        assert detector.fetch(emotion_map) == EmotionState.EXCITED
 
     def test_invalid_values_fall_back_to_neutral(self):
-        detector = EmotionDetector()
-        assert detector.detect({"unknown": "mid"}) == EmotionState.NEUTRAL
+        detector = EmotionFetcher()
+        assert detector.fetch({"unknown": "mid"}) == EmotionState.NEUTRAL
 
     def test_additional_emotions_are_mapped(self):
-        detector = EmotionDetector()
+        detector = EmotionFetcher()
         emotion_map = {"surprised": "high"}
-        assert detector.detect(emotion_map) == EmotionState.EXCITED
+        assert detector.fetch(emotion_map) == EmotionState.EXCITED
 
 
 class TestTypoInjector:
@@ -93,7 +94,7 @@ class TestBehaviorCoordinator:
         assert send_actions
 
     def test_emotion_detection_integration(self):
-        config = BehaviorConfig(enable_emotion_detection=True)
+        config = BehaviorConfig(enable_emotion_fetch=True)
         coordinator = BehaviorCoordinator(config=config)
 
         text = "哈哈哈太好了！"
@@ -114,7 +115,9 @@ class TestBehaviorCoordinator:
         actions = coordinator.process_message(text)
 
         recall_actions = [a for a in actions if a.type == "recall"]
-        assert recall_actions, "Recall action should be present when typo+recall always true"
+        assert (
+            recall_actions
+        ), "Recall action should be present when typo+recall always true"
 
 
 if __name__ == "__main__":

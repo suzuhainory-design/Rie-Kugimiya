@@ -9,6 +9,7 @@ from ..utils.logger import unified_logger
 
 router = APIRouter()
 
+
 def get_behavior_coordinator(request: ChatRequest) -> BehaviorCoordinator:
     """Get or create behavior coordinator with settings"""
     # Create config from request settings
@@ -18,7 +19,7 @@ def get_behavior_coordinator(request: ChatRequest) -> BehaviorCoordinator:
             enable_segmentation=settings.enable_segmentation,
             enable_typo=settings.enable_typo,
             enable_recall=settings.enable_recall,
-            enable_emotion_detection=settings.enable_emotion_detection,
+            enable_emotion_fetch=settings.enable_emotion_detection,
             max_segment_length=settings.max_segment_length,
             min_pause_duration=settings.min_pause_duration,
             max_pause_duration=settings.max_pause_duration,
@@ -29,6 +30,7 @@ def get_behavior_coordinator(request: ChatRequest) -> BehaviorCoordinator:
         config = BehaviorConfig()
 
     return BehaviorCoordinator(config=config)
+
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -78,23 +80,20 @@ async def chat(request: ChatRequest):
                 "emotion_map": llm_response.emotion_map,
                 "segment_count": send_count,
                 "raw_llm": llm_response.raw_text,
-            }
+            },
         )
 
     except Exception as e:
         import traceback
+
         error_detail = {
             "error": str(e),
             "type": type(e).__name__,
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        unified_logger.error(
-            f"Error in chat endpoint: {error_detail}"
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"{type(e).__name__}: {str(e)}"
-        )
+        unified_logger.error(f"Error in chat endpoint: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
 
 @router.get("/health")
 async def health_check():

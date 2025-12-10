@@ -9,7 +9,7 @@ import uuid
 
 from .models import BehaviorConfig, EmotionState, PlaybackAction
 from .segmenter import SmartSegmenter
-from .emotion import EmotionDetector
+from .emotion import EmotionFetcher
 from .typo import TypoInjector
 from .pause import PausePredictor
 from .timeline import TimelineBuilder
@@ -28,7 +28,7 @@ class BehaviorCoordinator:
         self.segmenter = SmartSegmenter(
             max_length=self.config.max_segment_length,
         )
-        self.emotion_detector = EmotionDetector()
+        self.emotion_fetcher = EmotionFetcher()
         self.typo_injector = TypoInjector()
         self.pause_predictor = PausePredictor()
         self.timeline_builder = TimelineBuilder()
@@ -43,8 +43,8 @@ class BehaviorCoordinator:
         if not cleaned_input:
             return []
 
-        normalized_emotion_map = self.emotion_detector.normalize_map(emotion_map)
-        emotion = self._detect_emotion(cleaned_input, normalized_emotion_map)
+        normalized_emotion_map = self.emotion_fetcher.normalize_map(emotion_map)
+        emotion = self._fetch_emotion(cleaned_input, normalized_emotion_map)
         segments = self._segment_and_clean(cleaned_input)
         total_segments = len(segments)
 
@@ -68,9 +68,9 @@ class BehaviorCoordinator:
         self.config = config
 
     def get_emotion(self, text: str, emotion_map: dict | None = None) -> EmotionState:
-        """Expose emotion detection for API metadata."""
-        normalized_map = self.emotion_detector.normalize_map(emotion_map)
-        return self._detect_emotion(text, normalized_map)
+        """Expose emotion fetch for API metadata."""
+        normalized_map = self.emotion_fetcher.normalize_map(emotion_map)
+        return self._fetch_emotion(text, normalized_map)
 
     # --------------------------------------------------------------------- #
     # Internal helpers
@@ -216,12 +216,12 @@ class BehaviorCoordinator:
         recall_actions.append(correction_action)
         return recall_actions
 
-    def _detect_emotion(
+    def _fetch_emotion(
         self, text: str, emotion_map: dict | None = None
     ) -> EmotionState:
-        if not self.config.enable_emotion_detection:
+        if not self.config.enable_emotion_fetch:
             return EmotionState.NEUTRAL
-        return self.emotion_detector.detect(emotion_map=emotion_map, fallback_text=text)
+        return self.emotion_fetcher.fetch(emotion_map=emotion_map, fallback_text=text)
 
     @staticmethod
     def _trim_trailing_punctuation(text: str) -> str:

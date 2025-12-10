@@ -65,7 +65,7 @@ class TypoInjector:
         }
 
     def inject_typo(
-        self, text: str, typo_rate: float = 0.08
+        self, text: str, typo_rate: float = 0.05
     ) -> Tuple[bool, Optional[str], Optional[int], Optional[str]]:
         """
         Potentially inject a typo into the text.

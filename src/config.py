@@ -45,23 +45,23 @@ class BehaviorDefaults(BaseSettings):
     enable_emotion_detection: bool = True
 
     max_segment_length: int = 50
-    min_pause_duration: float = 0.4
-    max_pause_duration: float = 2.5
+    min_pause_duration: float = 0.8
+    max_pause_duration: float = 6.0
 
-    base_typo_rate: float = 0.08
-    typo_recall_rate: float = 0.4
-    recall_delay: float = 1.2
-    retype_delay: float = 0.6
+    base_typo_rate: float = 0.05
+    typo_recall_rate: float = 0.75
+    recall_delay: float = 2
+    retype_delay: float = 2.5
 
     emotion_typo_multiplier: Dict[str, float] = Field(
         default_factory=lambda: {
             "neutral": 1.0,
-            "happy": 0.8,
-            "excited": 1.5,
-            "sad": 1.2,
-            "angry": 1.8,
-            "anxious": 2.0,
-            "confused": 1.3,
+            "happy": 1.2,
+            "excited": 2.0,
+            "sad": 0.5,
+            "angry": 2.3,
+            "anxious": 1.3,
+            "confused": 0.3,
         }
     )
 
@@ -74,21 +74,21 @@ class TypingStateDefaults(BaseSettings):
     hesitation_probability: float = 0.15
     hesitation_cycles_min: int = 1
     hesitation_cycles_max: int = 2
-    hesitation_duration_min: int = 400
-    hesitation_duration_max: int = 1200
-    hesitation_gap_min: int = 300
-    hesitation_gap_max: int = 900
+    hesitation_duration_min: int = 1500
+    hesitation_duration_max: int = 5000
+    hesitation_gap_min: int = 500
+    hesitation_gap_max: int = 2000
 
-    typing_lead_time_threshold_1: int = 15
-    typing_lead_time_1: int = 600
-    typing_lead_time_threshold_2: int = 30
-    typing_lead_time_2: int = 800
-    typing_lead_time_threshold_3: int = 60
-    typing_lead_time_3: int = 1100
-    typing_lead_time_threshold_4: int = 100
-    typing_lead_time_4: int = 1600
-    typing_lead_time_threshold_5: int = 140
-    typing_lead_time_5: int = 2200
+    typing_lead_time_threshold_1: int = 6
+    typing_lead_time_1: int = 1200
+    typing_lead_time_threshold_2: int = 15
+    typing_lead_time_2: int = 2000
+    typing_lead_time_threshold_3: int = 28
+    typing_lead_time_3: int = 3800
+    typing_lead_time_threshold_4: int = 34
+    typing_lead_time_4: int = 6000
+    typing_lead_time_threshold_5: int = 50
+    typing_lead_time_5: int = 8800
     typing_lead_time_default: int = 2500
 
     entry_delay_min: int = 200
@@ -102,9 +102,9 @@ class TypingStateDefaults(BaseSettings):
     initial_delay_range_2_max: int = 6
     initial_delay_weight_3: float = 0.93
     initial_delay_range_3_min: int = 6
-    initial_delay_range_3_max: int = 8
+    initial_delay_range_3_max: int = 7
     initial_delay_range_4_min: int = 8
-    initial_delay_range_4_max: int = 10
+    initial_delay_range_4_max: int = 9
 
     class Config:
         env_file = ".env"

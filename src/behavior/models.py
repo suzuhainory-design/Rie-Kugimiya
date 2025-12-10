@@ -62,7 +62,7 @@ class BehaviorConfig(BaseModel):
 
     # Typo injection
     enable_typo: bool = True
-    base_typo_rate: float = 0.08  # 8% base chance of typo per segment
+    base_typo_rate: float = 0.05  # 5% base chance of typo per segment
     emotion_typo_multiplier: dict = Field(
         default_factory=lambda: {
             EmotionState.NEUTRAL: 1.0,
@@ -78,8 +78,8 @@ class BehaviorConfig(BaseModel):
     # Recall behavior
     enable_recall: bool = True
     typo_recall_rate: float = 0.75  # 75% chance to recall and fix typo
-    recall_delay: float = 1.8  # Seconds before recalling
-    retype_delay: float = 1.8  # Seconds before sending corrected version
+    recall_delay: float = 2  # Seconds before recalling
+    retype_delay: float = 2.5  # Seconds before sending corrected version
 
     # Emotion detection
-    enable_emotion_detection: bool = True
+    enable_emotion_fetch: bool = True

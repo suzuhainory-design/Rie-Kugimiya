@@ -10,7 +10,7 @@ from typing import Dict
 from .models import EmotionState
 
 
-class EmotionDetector:
+class EmotionFetcher:
     """Interpret LLM-supplied emotion maps."""
 
     INTENSITY_ORDER = ["low", "medium", "high", "extreme"]
@@ -35,7 +35,7 @@ class EmotionDetector:
         "caring": EmotionState.HAPPY,
     }
 
-    def detect(
+    def fetch(
         self,
         emotion_map: Dict[str, str] | None = None,
         fallback_text: str | None = None,

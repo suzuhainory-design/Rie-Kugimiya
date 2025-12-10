@@ -27,7 +27,7 @@ class PausePredictor:
         self,
         emotion: EmotionState = EmotionState.NEUTRAL,
         min_duration: float = 0.8,
-        max_duration: float = 6.0,
+        max_duration: float = 8.0,
         text_length: int = 0,
     ) -> float:
         """
@@ -49,7 +49,7 @@ class PausePredictor:
         multiplier = self.emotion_speed_multipliers.get(emotion, 1.0)
         interval = base * multiplier
 
-        length_bonus = min(max(text_length, 0) * 0.04, 6.0)
+        length_bonus = min(max(text_length, 0) * 0.075, 6.0)
         interval += length_bonus
 
         # Clamp to non-negative range
