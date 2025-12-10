@@ -1,8 +1,11 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from datetime import datetime
 import asyncio
 import logging
 import os
+import base64
 
 from ..message_server import (
     MessageService,
@@ -22,6 +25,11 @@ router = APIRouter()
 message_service = MessageService()
 ws_manager = WebSocketManager()
 rin_clients = {}
+
+
+class AvatarUploadRequest(BaseModel):
+    user_id: str
+    avatar_data: str  # base64 encoded image data
 
 # Set WebSocket manager for unified logger
 unified_logger.set_ws_manager(ws_manager)
@@ -278,3 +286,61 @@ async def handle_debug_mode(websocket: WebSocket, conversation_id: str, data: di
         ws_manager.disable_debug_mode(websocket, conversation_id)
         unified_logger.enable_debug_mode(False)
         logger.info(f"Debug mode disabled for conversation {conversation_id}")
+
+
+@router.get("/avatar/{user_id}")
+async def get_user_avatar(user_id: str):
+    """Get user avatar (base64 encoded)"""
+    try:
+        avatar_data = message_service.db.get_user_avatar(user_id)
+        if avatar_data:
+            return JSONResponse(content={"avatar_data": avatar_data})
+        else:
+            return JSONResponse(content={"avatar_data": None})
+    except Exception as e:
+        logger.error(f"Error getting avatar for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get avatar")
+
+
+@router.post("/avatar")
+async def upload_user_avatar(request: AvatarUploadRequest):
+    """Upload user avatar (base64 encoded)"""
+    try:
+        # Validate base64 data
+        user_id = request.user_id
+        avatar_data = request.avatar_data
+
+        # Check if it's a valid base64 string and starts with data:image
+        if not avatar_data.startswith("data:image/"):
+            raise HTTPException(status_code=400, detail="Invalid image data format")
+
+        # Check file size (limit to 5MB base64 encoded)
+        if len(avatar_data) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Avatar size too large (max 5MB)")
+
+        success = message_service.db.save_user_avatar(user_id, avatar_data)
+
+        if success:
+            return JSONResponse(content={"success": True, "message": "Avatar uploaded successfully"})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save avatar")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading avatar for user {request.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to upload avatar")
+
+
+@router.delete("/avatar/{user_id}")
+async def delete_user_avatar(user_id: str):
+    """Delete user avatar"""
+    try:
+        success = message_service.db.delete_user_avatar(user_id)
+
+        if success:
+            return JSONResponse(content={"success": True, "message": "Avatar deleted successfully"})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete avatar")
+    except Exception as e:
+        logger.error(f"Error deleting avatar for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete avatar")

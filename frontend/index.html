@@ -49,6 +49,21 @@
                 <input type="text" id="characterName" placeholder="Loading...">
             </div>
 
+            <div class="form-group">
+                <label>用户头像</label>
+                <div class="avatar-config">
+                    <div class="avatar-preview-wrapper">
+                        <img id="avatarPreview" class="avatar-preview" src="/static/assets/avatar_user.png" alt="User Avatar">
+                    </div>
+                    <div class="avatar-actions">
+                        <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;">
+                        <button type="button" id="uploadAvatarBtn" class="btn-avatar btn-upload">选择图片</button>
+                        <button type="button" id="deleteAvatarBtn" class="btn-avatar btn-delete">恢复默认</button>
+                    </div>
+                    <div class="avatar-hint">支持 PNG、JPG、WEBP 格式，最大 5MB</div>
+                </div>
+            </div>
+
             <div class="form-group inline">
                 <div>
                     <label for="emotionThemeToggle">情绪主题光效</label>

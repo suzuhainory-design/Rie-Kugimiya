@@ -109,6 +109,10 @@ class ChatApp {
         this.emotionThemeToggle = document.getElementById('emotionThemeToggle');
         this.debugModeToggle = document.getElementById('debugModeToggle');
         this.saveConfigBtn = document.getElementById('saveConfig');
+        this.avatarPreview = document.getElementById('avatarPreview');
+        this.avatarInput = document.getElementById('avatarInput');
+        this.uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
+        this.deleteAvatarBtn = document.getElementById('deleteAvatarBtn');
 
         this.phoneContainer = document.querySelector('.phone-container');
         this.wechatShell = document.getElementById('wechatShell');
@@ -214,6 +218,22 @@ class ChatApp {
         if (this.debugModeToggle) {
             this.debugModeToggle.addEventListener('change', () => {
                 this.toggleDebugMode(this.debugModeToggle.checked);
+            });
+        }
+
+        if (this.uploadAvatarBtn && this.avatarInput) {
+            this.uploadAvatarBtn.addEventListener('click', () => {
+                this.avatarInput.click();
+            });
+
+            this.avatarInput.addEventListener('change', (e) => {
+                this.handleAvatarUpload(e);
+            });
+        }
+
+        if (this.deleteAvatarBtn) {
+            this.deleteAvatarBtn.addEventListener('click', () => {
+                this.handleAvatarDelete();
             });
         }
 
@@ -356,6 +376,9 @@ class ChatApp {
 
         // Load saved config or apply defaults
         this.loadSavedConfig();
+
+        // Load user avatar
+        this.loadUserAvatar();
     }
 
     loadSavedConfig() {
@@ -717,9 +740,12 @@ class ChatApp {
         } else {
             const avatar = document.createElement('img');
             avatar.className = 'avatar';
-            avatar.src = role === 'user'
-                ? '/static/assets/avatar_user.png'
-                : '/static/assets/avatar_rin.png';
+            // Use custom avatar if available, otherwise use default
+            if (role === 'user') {
+                avatar.src = this.userAvatarData || '/static/assets/avatar_user.png';
+            } else {
+                avatar.src = '/static/assets/avatar_rin.png';
+            }
             avatar.alt = role === 'user' ? 'Me' : 'Rin';
 
             const bubble = document.createElement('div');
@@ -1307,6 +1333,123 @@ class ChatApp {
         }
 
         // Auto-scroll to bottom (since we're using column-reverse, scroll stays at bottom)
+    }
+
+    async loadUserAvatar() {
+        try {
+            const response = await fetch('/api/avatar/user');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.avatar_data) {
+                    this.updateAvatarPreview(data.avatar_data);
+                    // Store in memory for message rendering
+                    this.userAvatarData = data.avatar_data;
+                } else {
+                    this.userAvatarData = null;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load user avatar:', error);
+        }
+    }
+
+    updateAvatarPreview(avatarData) {
+        if (this.avatarPreview) {
+            if (avatarData) {
+                this.avatarPreview.src = avatarData;
+            } else {
+                this.avatarPreview.src = '/static/assets/avatar_user.png';
+            }
+        }
+    }
+
+    async handleAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('请选择有效的图片格式（PNG、JPG、WEBP）');
+            return;
+        }
+
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('图片大小不能超过 5MB');
+            return;
+        }
+
+        // Read file and convert to base64
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const avatarData = e.target.result;
+
+            try {
+                // Upload to server
+                const response = await fetch('/api/avatar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: 'user',
+                        avatar_data: avatarData
+                    })
+                });
+
+                if (response.ok) {
+                    this.updateAvatarPreview(avatarData);
+                    this.userAvatarData = avatarData;
+                    // Refresh message avatars if in chat view
+                    if (this.wechatShell.style.display !== 'none') {
+                        this.renderLocalMessages();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(`上传失败：${error.detail || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('Failed to upload avatar:', error);
+                alert('上传失败，请重试');
+            }
+        };
+
+        reader.onerror = () => {
+            alert('读取图片失败，请重试');
+        };
+
+        reader.readAsDataURL(file);
+
+        // Clear input so the same file can be selected again
+        event.target.value = '';
+    }
+
+    async handleAvatarDelete() {
+        if (!confirm('确定要恢复为默认头像吗？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/avatar/user', {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.updateAvatarPreview(null);
+                this.userAvatarData = null;
+                // Refresh message avatars if in chat view
+                if (this.wechatShell.style.display !== 'none') {
+                    this.renderLocalMessages();
+                }
+            } else {
+                const error = await response.json();
+                alert(`删除失败：${error.detail || '未知错误'}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete avatar:', error);
+            alert('删除失败，请重试');
+        }
     }
 
 }

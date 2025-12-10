@@ -65,6 +65,14 @@ class MessageDatabase:
                 CREATE INDEX IF NOT EXISTS idx_sender
                 ON messages(sender_id)
             """)
+            # User settings table for storing avatar and other preferences
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    user_id TEXT PRIMARY KEY,
+                    avatar_data TEXT,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             conn.commit()
 
     @contextmanager
@@ -174,5 +182,51 @@ class MessageDatabase:
                 return True
         except Exception as e:
             logger.error(f"Error clearing conversation: {e}", exc_info=True)
+            return False
+
+    def get_user_avatar(self, user_id: str) -> Optional[str]:
+        """Get user avatar data (base64 encoded)"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT avatar_data FROM user_settings WHERE user_id = ?", (user_id,))
+                row = cursor.fetchone()
+                return row['avatar_data'] if row else None
+        except Exception as e:
+            logger.error(f"Error getting user avatar: {e}", exc_info=True)
+            return None
+
+    def save_user_avatar(self, user_id: str, avatar_data: str) -> bool:
+        """Save user avatar data (base64 encoded)"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO user_settings (user_id, avatar_data, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        avatar_data = excluded.avatar_data,
+                        updated_at = CURRENT_TIMESTAMP
+                """, (user_id, avatar_data))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error saving user avatar: {e}", exc_info=True)
+            return False
+
+    def delete_user_avatar(self, user_id: str) -> bool:
+        """Delete user avatar data"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE user_settings
+                    SET avatar_data = NULL, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                """, (user_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting user avatar: {e}", exc_info=True)
             return False
 

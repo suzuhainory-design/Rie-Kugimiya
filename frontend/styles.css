@@ -838,6 +838,92 @@ textarea {
     max-width: 100%;
 }
 
+/* Avatar Configuration Styles */
+.avatar-config {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.avatar-preview-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    background: #f9f9f9;
+    border: 2px dashed #e0e0e0;
+    border-radius: 12px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.avatar-preview-wrapper:hover {
+    background: #f5f5f5;
+    border-color: #d0d0d0;
+}
+
+.avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-avatar {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-avatar.btn-upload {
+    background: linear-gradient(135deg, #1aad19 0%, #07c160 100%);
+    color: #fff;
+}
+
+.btn-avatar.btn-upload:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(7, 193, 96, 0.3);
+}
+
+.btn-avatar.btn-upload:active {
+    transform: translateY(0);
+}
+
+.btn-avatar.btn-delete {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #e0e0e0;
+}
+
+.btn-avatar.btn-delete:hover {
+    background: #ebebeb;
+    border-color: #d0d0d0;
+}
+
+.btn-avatar.btn-delete:active {
+    background: #e0e0e0;
+}
+
+.avatar-hint {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    padding: 0 8px;
+}
+
 @media (max-width: 960px) {
     body {
         overflow: auto;
