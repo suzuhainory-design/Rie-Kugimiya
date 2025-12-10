@@ -1,6 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from datetime import datetime
+import asyncio
 import logging
+import os
 
 from ..message_server import (
     MessageService,
@@ -57,6 +59,19 @@ async def get_config_defaults():
             "enable_emotion_theme": ui_defaults.enable_emotion_theme,
         },
     }
+
+
+@router.post("/shutdown")
+async def shutdown_server():
+    """Request graceful shutdown of the backend process"""
+    logger.warning("Shutdown requested via API, terminating process")
+
+    async def _terminate():
+        await asyncio.sleep(0.2)
+        os._exit(0)
+
+    asyncio.create_task(_terminate())
+    return {"status": "shutting_down"}
 
 
 def get_or_create_rin_client(conversation_id: str, llm_config: dict) -> RinClient:

@@ -11,6 +11,8 @@ class ChatApp {
         this.emotionState = this.loadEmotionState();
         this.newMessageCount = 0;
         this.isUserNearBottom = true;
+        this.isMenuOpen = false;
+        this.isShuttingDown = false;
 
         this.initElements();
         this.attachEventListeners();
@@ -115,7 +117,9 @@ class ChatApp {
         this.userInput = document.getElementById('userInput');
         this.toggleBtn = document.getElementById('toggleBtn');
         this.showConfigBtn = document.getElementById('showConfig');
-        this.clearBtn = document.getElementById('clearBtn');
+        this.menuButton = document.getElementById('menuButton');
+        this.menuPopover = document.getElementById('menuPopover');
+        this.menuWrapper = document.querySelector('.menu-wrapper');
         this.statusTime = document.getElementById('statusTime');
         this.statusClock = document.getElementById('statusClock');
         this.statusAmPm = document.getElementById('statusAmPm');
@@ -156,13 +160,28 @@ class ChatApp {
         this.saveConfigBtn.addEventListener('click', () => this.saveConfig());
         this.showConfigBtn.addEventListener('click', () => this.toggleView());
 
-        if (this.clearBtn) {
-            this.clearBtn.addEventListener('click', () => {
-                if (confirm('Clear all messages? This cannot be undone.')) {
-                    this.clearConversation();
-                }
+        if (this.menuButton) {
+            this.menuButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.toggleMenu();
             });
         }
+
+        if (this.menuPopover) {
+            this.menuPopover.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('[data-action]');
+                if (!actionButton) return;
+                event.stopPropagation();
+                this.handleMenuAction(actionButton.dataset.action);
+            });
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!this.isMenuOpen) return;
+            if (this.menuWrapper && !this.menuWrapper.contains(event.target)) {
+                this.closeMenu();
+            }
+        });
 
         this.toggleBtn.addEventListener('click', () => {
             if (!this.toggleBtn.disabled) {
@@ -217,6 +236,86 @@ class ChatApp {
                 this.scrollToBottom({ smooth: true });
                 this.resetNewMessageIndicator();
             });
+        }
+    }
+
+    toggleMenu() {
+        if (this.isMenuOpen) {
+            this.closeMenu();
+        } else {
+            this.openMenu();
+        }
+    }
+
+    openMenu() {
+        if (!this.menuPopover) return;
+        this.menuPopover.classList.add('open');
+        this.menuPopover.setAttribute('aria-hidden', 'false');
+        if (this.menuButton) {
+            this.menuButton.setAttribute('aria-expanded', 'true');
+        }
+        this.isMenuOpen = true;
+    }
+
+    closeMenu() {
+        if (!this.menuPopover) return;
+        this.menuPopover.classList.remove('open');
+        this.menuPopover.setAttribute('aria-hidden', 'true');
+        if (this.menuButton) {
+            this.menuButton.setAttribute('aria-expanded', 'false');
+        }
+        this.isMenuOpen = false;
+    }
+
+    handleMenuAction(action) {
+        if (action === 'clear') {
+            this.closeMenu();
+            this.triggerClearConversation();
+        } else if (action === 'terminate') {
+            this.closeMenu();
+            this.triggerShutdown();
+        }
+    }
+
+    triggerClearConversation() {
+        const canNotifyServer = this.ws && this.ws.readyState === WebSocket.OPEN;
+        if (canNotifyServer) {
+            this.clearConversation();
+        } else {
+            this.addMessage('system', '未连接服务器，暂时无法清空对话。', { skipIndicator: true });
+        }
+    }
+
+    async triggerShutdown() {
+        if (this.isShuttingDown) return;
+
+        this.isShuttingDown = true;
+        this.addMessage('system', '终止指令已发送，服务即将关闭...', { skipIndicator: true });
+
+        try {
+            const response = await fetch('/api/shutdown', { method: 'POST' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Shutdown request failed:', error);
+            this.isShuttingDown = false;
+            this.addMessage('system', '终止失败，请检查服务状态。', { skipIndicator: true });
+            return;
+        }
+
+        if (this.userInput) {
+            this.userInput.disabled = true;
+        }
+        if (this.toggleBtn) {
+            this.toggleBtn.disabled = true;
+        }
+        if (this.ws) {
+            try {
+                this.ws.close();
+            } catch (e) {
+                // No-op if close fails
+            }
         }
     }
 
@@ -448,6 +547,9 @@ class ChatApp {
 
         this.ws.onclose = () => {
             console.log('WebSocket closed');
+            if (this.isShuttingDown) {
+                return;
+            }
             setTimeout(() => {
                 if (this.config && this.wechatShell.style.display !== 'none') {
                     this.connectWebSocket();
@@ -678,6 +780,10 @@ class ChatApp {
     }
 
     handleMessagesScroll() {
+        if (this.isMenuOpen) {
+            this.closeMenu();
+        }
+
         const nearBottom = this.isNearBottom();
         this.isUserNearBottom = nearBottom;
 

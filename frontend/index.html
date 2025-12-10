@@ -97,17 +97,30 @@
                         </div>
 
                         <div class="wechat-header">
-                            <button id="showConfig" class="back-button" aria-label="back"></button>
-                            <div class="header-info">
-                                <div class="contact-name" id="chatTitle">Rin</div>
-                            </div>
-                            <button class="menu-button" id="clearBtn" aria-label="clear" title="Clear conversation">
+                        <button id="showConfig" class="back-button" aria-label="back"></button>
+                        <div class="header-info">
+                            <div class="contact-name" id="chatTitle">Rin</div>
+                        </div>
+                        <div class="menu-wrapper">
+                            <button class="menu-button" id="menuButton" aria-label="more actions" aria-haspopup="true"
+                                aria-expanded="false" title="更多">
                                 <span class="action-dot"></span>
                                 <span class="action-dot"></span>
                                 <span class="action-dot"></span>
                             </button>
+                            <div class="menu-popover" id="menuPopover" role="menu" aria-hidden="true">
+                                <button class="menu-item" type="button" data-action="clear" role="menuitem">
+                                    <span class="menu-item-label">清空对话</span>
+                                    <span class="menu-item-desc">移除当前聊天记录</span>
+                                </button>
+                                <button class="menu-item danger" type="button" data-action="terminate" role="menuitem">
+                                    <span class="menu-item-label">终止程序</span>
+                                    <span class="menu-item-desc">关闭后端与所有服务</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
+                </div>
 
                     <div class="wechat-main">
                         <div class="messages" id="messages"></div>

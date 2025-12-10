@@ -351,8 +351,99 @@ textarea {
     display: flex;
     gap: 4px;
     align-items: center;
-    padding: 4px 6px;
-    cursor: default;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.12s ease;
+}
+
+.menu-button:active {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.menu-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 40px;
+}
+
+.menu-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -4px;
+    min-width: 180px;
+    background: #4d4d4d;
+    color: #f7f7f7;
+    border-radius: 6px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+    padding: 6px 0;
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+    transform-origin: top right;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    z-index: 15;
+}
+
+.menu-popover::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: 14px;
+    width: 12px;
+    height: 12px;
+    background: #4d4d4d;
+    transform: rotate(45deg);
+    box-shadow: -3px -3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.menu-popover.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.menu-item {
+    width: 100%;
+    border: none;
+    background: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 10px 16px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.menu-item + .menu-item {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.menu-item:active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-item .menu-item-label {
+    font-weight: 600;
+}
+
+.menu-item .menu-item-desc {
+    font-size: 12px;
+    color: rgba(247, 247, 247, 0.7);
+}
+
+.menu-item.danger {
+    color: #ff7575;
 }
 
 .header-info {
