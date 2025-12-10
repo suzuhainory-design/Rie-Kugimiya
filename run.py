@@ -35,14 +35,14 @@ if __name__ == "__main__":
     # Find an available port
     port = find_free_port()
 
-    print("=" * 60)
-    print("Yuzuriha Rin Virtual Character System")
-    print("=" * 60)
-    print("\nStarting server...")
-    print(f"  ✓ URL: http://localhost:{port}")
-    print(f"  ✓ API: http://localhost:{port}/api/health")
-    print(f"  ✓ Port: {port}")
-    print("\nPress Ctrl+C to stop\n")
-    print("=" * 60)
+    print("=" * 60, flush=True)
+    print("Yuzuriha Rin Virtual Character System", flush=True)
+    print("=" * 60, flush=True)
+    print("\nStarting server...", flush=True)
+    print(f"  ✓ URL: http://localhost:{port}", flush=True)
+    print(f"  ✓ API: http://localhost:{port}/api/health", flush=True)
+    print(f"  ✓ Port: {port}", flush=True)
+    print("\nPress Ctrl+C to stop\n", flush=True)
+    print("=" * 60, flush=True)
 
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

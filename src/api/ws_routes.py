@@ -4,7 +4,7 @@ import logging
 
 from ..message_server import MessageService, WebSocketManager, Message, MessageType, TypingState
 from ..rin_client import RinClient
-from ..config import character_config
+from ..config import character_config, llm_defaults, ui_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,27 @@ async def health_check():
         "service": "Yuzuriha Rin Virtual Character System",
         "active_conversations": len(ws_manager.active_connections),
         "active_websockets": sum(len(ws_set) for ws_set in ws_manager.active_connections.values())
+    }
+
+
+@router.get("/config/defaults")
+async def get_config_defaults():
+    """Get default configuration values"""
+    return {
+        "llm": {
+            "provider": llm_defaults.provider,
+            "model_openai": llm_defaults.model_openai,
+            "model_anthropic": llm_defaults.model_anthropic,
+            "model_deepseek": llm_defaults.model_deepseek,
+            "model_custom": llm_defaults.model_custom,
+        },
+        "character": {
+            "name": character_config.default_name,
+            "persona": character_config.default_persona,
+        },
+        "ui": {
+            "enable_emotion_theme": ui_defaults.enable_emotion_theme,
+        }
     }
 
 
@@ -224,5 +245,13 @@ async def handle_init_rin(conversation_id: str, data: dict):
     """Initialize Rin client for conversation"""
     llm_config = data.get("llm_config", {})
 
-    rin_client = get_or_create_rin_client(conversation_id, llm_config)
-    await rin_client.start(conversation_id)
+    if not llm_config:
+        logger.warning(f"Empty LLM config for conversation {conversation_id}")
+        return
+
+    try:
+        rin_client = get_or_create_rin_client(conversation_id, llm_config)
+        await rin_client.start(conversation_id)
+        logger.info(f"Rin client initialized for conversation {conversation_id}")
+    except Exception as e:
+        logger.error(f"Failed to initialize Rin client: {e}", exc_info=True)

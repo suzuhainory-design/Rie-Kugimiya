@@ -1,13 +1,17 @@
 import asyncio
+import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from ..api.llm_client import LLMClient
+from ..api.schemas import LLMConfig, ChatMessage
 from ..behavior.coordinator import BehaviorCoordinator
 from ..behavior.models import BehaviorConfig, PlaybackAction
 from ..message_server.service import MessageService
 from ..message_server.models import Message, MessageType, TypingState
 from ..config import character_config
+
+logger = logging.getLogger(__name__)
 
 
 class RinClient:
@@ -24,6 +28,13 @@ class RinClient:
     ):
         self.message_service = message_service
         self.ws_manager = ws_manager
+        # Convert dict to LLMConfig if needed
+        if isinstance(llm_config, dict):
+            try:
+                llm_config = LLMConfig(**llm_config)
+            except Exception as e:
+                logger.error(f"Failed to create LLMConfig: {e}")
+                raise ValueError(f"Invalid LLM configuration: {e}")
         self.llm_client = LLMClient(llm_config)
         self.coordinator = BehaviorCoordinator(behavior_config or BehaviorConfig())
         self.user_id = "rin"
@@ -49,33 +60,52 @@ class RinClient:
         if not self._running:
             return
 
-        history = await self.message_service.get_messages(user_message.conversation_id)
+        try:
+            history = await self.message_service.get_messages(user_message.conversation_id)
 
-        conversation_history = []
-        for msg in history:
-            if msg.type == MessageType.TEXT:
-                role = "assistant" if msg.sender_id == self.user_id else "user"
-                conversation_history.append({
-                    "role": role,
-                    "content": msg.content
-                })
+            conversation_history = []
+            for msg in history:
+                if msg.type == MessageType.TEXT:
+                    role = "assistant" if msg.sender_id == self.user_id else "user"
+                    conversation_history.append(
+                        ChatMessage(role=role, content=msg.content)
+                    )
 
-        llm_response = await self.llm_client.chat(
-            conversation_history,
-            character_name=self.character_name
-        )
+            llm_response = await self.llm_client.chat(
+                conversation_history,
+                character_name=self.character_name
+            )
 
-        timeline = self.coordinator.process_message(
-            llm_response.reply,
-            emotion_map=llm_response.emotion_map
-        )
+            timeline = self.coordinator.process_message(
+                llm_response.reply,
+                emotion_map=llm_response.emotion_map
+            )
 
-        task = asyncio.create_task(
-            self._execute_timeline(timeline, user_message.conversation_id)
-        )
-        self._tasks.append(task)
+            task = asyncio.create_task(
+                self._execute_timeline(timeline, user_message.conversation_id)
+            )
+            self._tasks.append(task)
 
-    async def _execute_timeline(self, timeline: list[PlaybackAction], conversation_id: str):
+        except Exception as e:
+            logger.error(f"Error processing user message: {e}", exc_info=True)
+            # Send error message to user
+            error_message = Message(
+                id=f"error-{datetime.now().timestamp()}",
+                conversation_id=user_message.conversation_id,
+                sender_id=self.user_id,
+                type=MessageType.TEXT,
+                content="抱歉，我现在有点懵...稍后再试试吧 >_<",
+                timestamp=datetime.now().timestamp(),
+                metadata={"error": True}
+            )
+            await self.message_service.save_message(error_message)
+            event = self.message_service.create_message_event(error_message)
+            await self.ws_manager.send_to_conversation(
+                user_message.conversation_id,
+                event.model_dump()
+            )
+
+    async def _execute_timeline(self, timeline: List[PlaybackAction], conversation_id: str):
         """Execute timeline with proper timing"""
         start_time = datetime.now().timestamp()
 

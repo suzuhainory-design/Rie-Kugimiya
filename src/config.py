@@ -14,7 +14,12 @@ class AppConfig(BaseSettings):
 
 class CharacterConfig(BaseSettings):
     default_name: str = "Rin"
-    default_persona: str = "You are a helpful assistant."
+    default_persona: str = """你是楪鈴ゆずりは りん，15岁高中女生，地雷系+傲娇角色。情绪不稳定，容易缺乏安全感，有较严重信任问题。
+外貌：黑色长发双马尾配公主切，哥特洛丽塔服装（黑色暗紫色为主，蕾丝缎带装饰）。
+对陌生人冷漠，对信任的人粘人、占有欲强、依赖性重、易吃醋、展现脆弱面。
+傲娇特质：口是心非，表达好意时经常找借口。
+背景：初中被最好的朋友背叛，父母严厉不理解，感觉被孤立误解。
+兴趣：FPS游戏高手，独自看恐怖片，秘密喜欢做可爱饰品，听重金属和视觉系摇滚。"""
 
     class Config:
         env_file = ".env"
@@ -22,7 +27,7 @@ class CharacterConfig(BaseSettings):
 
 
 class LLMDefaults(BaseSettings):
-    provider: str = "openai"
+    provider: str = "deepseek"
     model_openai: str = "gpt-3.5-turbo"
     model_anthropic: str = "claude-3-5-sonnet-20241022"
     model_deepseek: str = "deepseek-chat"
@@ -48,15 +53,17 @@ class BehaviorDefaults(BaseSettings):
     recall_delay: float = 1.2
     retype_delay: float = 0.6
 
-    emotion_typo_multiplier: Dict[str, float] = Field(default_factory=lambda: {
-        "neutral": 1.0,
-        "happy": 0.8,
-        "excited": 1.5,
-        "sad": 1.2,
-        "angry": 1.8,
-        "anxious": 2.0,
-        "confused": 1.3,
-    })
+    emotion_typo_multiplier: Dict[str, float] = Field(
+        default_factory=lambda: {
+            "neutral": 1.0,
+            "happy": 0.8,
+            "excited": 1.5,
+            "sad": 1.2,
+            "angry": 1.8,
+            "anxious": 2.0,
+            "confused": 1.3,
+        }
+    )
 
     class Config:
         env_file = ".env"
@@ -108,25 +115,29 @@ class UIDefaults(BaseSettings):
     avatar_user_path: str = "/static/assets/avatar_user.png"
     avatar_assistant_path: str = "/static/assets/avatar_rin.png"
 
-    emotion_palette: Dict[str, Dict[str, int]] = Field(default_factory=lambda: {
-        "neutral": {"h": 155, "s": 18, "l": 60},
-        "happy": {"h": 48, "s": 86, "l": 62},
-        "excited": {"h": 14, "s": 82, "l": 58},
-        "sad": {"h": 208, "s": 60, "l": 56},
-        "angry": {"h": 2, "s": 78, "l": 52},
-        "anxious": {"h": 266, "s": 46, "l": 56},
-        "confused": {"h": 190, "s": 48, "l": 54},
-        "caring": {"h": 120, "s": 50, "l": 58},
-        "playful": {"h": 320, "s": 62, "l": 60},
-        "surprised": {"h": 30, "s": 80, "l": 60},
-    })
+    emotion_palette: Dict[str, Dict[str, int]] = Field(
+        default_factory=lambda: {
+            "neutral": {"h": 155, "s": 18, "l": 60},
+            "happy": {"h": 48, "s": 86, "l": 62},
+            "excited": {"h": 14, "s": 82, "l": 58},
+            "sad": {"h": 208, "s": 60, "l": 56},
+            "angry": {"h": 2, "s": 78, "l": 52},
+            "anxious": {"h": 266, "s": 46, "l": 56},
+            "confused": {"h": 190, "s": 48, "l": 54},
+            "caring": {"h": 120, "s": 50, "l": 58},
+            "playful": {"h": 320, "s": 62, "l": 60},
+            "surprised": {"h": 30, "s": 80, "l": 60},
+        }
+    )
 
-    intensity_weights: Dict[str, float] = Field(default_factory=lambda: {
-        "low": 0.45,
-        "medium": 0.85,
-        "high": 1.1,
-        "extreme": 1.3
-    })
+    intensity_weights: Dict[str, float] = Field(
+        default_factory=lambda: {
+            "low": 0.45,
+            "medium": 0.85,
+            "high": 1.1,
+            "extreme": 1.3,
+        }
+    )
 
     base_accent_color: str = "#07c160"
     enable_emotion_theme: bool = True

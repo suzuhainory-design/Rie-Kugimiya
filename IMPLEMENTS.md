@@ -290,6 +290,7 @@ Uvicorn         # ASGI服务器
    - 可以被增量同步获取
 
 3. **元数据完整**
+
    ```python
    metadata = {
        "target_message_id": "msg-123",  # 被撤回的消息ID
@@ -544,7 +545,7 @@ class CharacterConfig(BaseSettings):
 
 ```python
 class LLMDefaults(BaseSettings):
-    provider: str = "openai"
+    provider: str = "deepseek"
     model_openai: str = "gpt-3.5-turbo"
     model_anthropic: str = "claude-3-5-sonnet-20241022"
     model_deepseek: str = "deepseek-chat"
@@ -1487,7 +1488,7 @@ created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 
 ## 前端实现
 
-### WebSocket客户端: `frontend/chat_ws.js`
+### WebSocket客户端: `frontend/app.js`
 
 ```javascript
 class ChatApp {
@@ -1651,12 +1652,14 @@ tests/
 ### 测试覆盖
 
 #### 配置测试 (8个测试)
+
 - 所有配置类的字段验证
 - 范围检查（min < max）
 - 概率值在[0,1]
 - 阈值递增性
 
 #### 数据库测试 (8个测试)
+
 - 数据库初始化
 - CRUD操作
 - 增量查询（after_timestamp）
@@ -1665,12 +1668,14 @@ tests/
 - 多会话隔离
 
 #### 消息服务测试 (5个测试)
+
 - 异步消息保存和查询
 - 输入状态管理
 - 事件创建
 - 增量同步
 
 #### 行为系统测试 (9个测试)
+
 - 行为协调器
 - 智能分段
 - 情绪检测
@@ -1681,6 +1686,7 @@ tests/
 - 时间戳验证
 
 #### WebSocket管理器测试 (8个测试)
+
 - 连接和断开
 - 多连接管理
 - 消息广播
@@ -1689,6 +1695,7 @@ tests/
 - 异常处理
 
 #### 集成测试 (7个测试)
+
 - 完整消息流
 - 行为到消息流
 - 输入状态流

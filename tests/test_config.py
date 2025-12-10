@@ -3,7 +3,8 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.config import (
     app_config,
@@ -13,7 +14,7 @@ from src.config import (
     typing_state_defaults,
     ui_defaults,
     websocket_config,
-    database_config
+    database_config,
 )
 
 
@@ -35,7 +36,7 @@ def test_character_config():
 
 def test_llm_defaults():
     print("Testing LLM defaults...")
-    assert llm_defaults.provider in ["openai", "anthropic", "deepseek", "custom"]
+    assert llm_defaults.provider in ["deepseek", "openai", "anthropic", "custom"]
     assert llm_defaults.model_openai == "gpt-3.5-turbo"
     assert llm_defaults.model_anthropic == "claude-3-5-sonnet-20241022"
     assert llm_defaults.model_deepseek == "deepseek-chat"
@@ -49,7 +50,11 @@ def test_behavior_defaults():
     assert isinstance(behavior_defaults.enable_recall, bool)
 
     assert behavior_defaults.max_segment_length > 0
-    assert 0 <= behavior_defaults.min_pause_duration <= behavior_defaults.max_pause_duration
+    assert (
+        0
+        <= behavior_defaults.min_pause_duration
+        <= behavior_defaults.max_pause_duration
+    )
     assert 0 <= behavior_defaults.base_typo_rate <= 1
     assert 0 <= behavior_defaults.typo_recall_rate <= 1
 
@@ -61,13 +66,30 @@ def test_behavior_defaults():
 def test_typing_state_defaults():
     print("Testing typing state defaults...")
     assert 0 <= typing_state_defaults.hesitation_probability <= 1
-    assert typing_state_defaults.hesitation_cycles_min <= typing_state_defaults.hesitation_cycles_max
-    assert typing_state_defaults.hesitation_duration_min < typing_state_defaults.hesitation_duration_max
+    assert (
+        typing_state_defaults.hesitation_cycles_min
+        <= typing_state_defaults.hesitation_cycles_max
+    )
+    assert (
+        typing_state_defaults.hesitation_duration_min
+        < typing_state_defaults.hesitation_duration_max
+    )
 
-    assert typing_state_defaults.typing_lead_time_threshold_1 < typing_state_defaults.typing_lead_time_threshold_2
-    assert typing_state_defaults.typing_lead_time_1 < typing_state_defaults.typing_lead_time_2
+    assert (
+        typing_state_defaults.typing_lead_time_threshold_1
+        < typing_state_defaults.typing_lead_time_threshold_2
+    )
+    assert (
+        typing_state_defaults.typing_lead_time_1
+        < typing_state_defaults.typing_lead_time_2
+    )
 
-    assert typing_state_defaults.initial_delay_weight_1 < typing_state_defaults.initial_delay_weight_2 < typing_state_defaults.initial_delay_weight_3 < 1
+    assert (
+        typing_state_defaults.initial_delay_weight_1
+        < typing_state_defaults.initial_delay_weight_2
+        < typing_state_defaults.initial_delay_weight_3
+        < 1
+    )
     print("✓ Typing state defaults valid")
 
 

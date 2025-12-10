@@ -1,11 +1,14 @@
 # LLM API client supporting multiple providers with structured JSON output
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import httpx
 
 from .schemas import ChatMessage, LLMConfig
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_BEHAVIOR_PROMPT = """
@@ -31,29 +34,40 @@ class LLMClient:
         self.config = config
         self.client = httpx.AsyncClient(timeout=60.0)
 
-    async def chat(self, messages: List[ChatMessage], character_name: str = "Rin") -> LLMStructuredResponse:
-        if self.config.provider == "openai":
-            raw = await self._openai_chat(messages, character_name)
-        elif self.config.provider == "anthropic":
-            raw = await self._anthropic_chat(messages, character_name)
-        elif self.config.provider == "deepseek":
-            raw = await self._deepseek_chat(messages, character_name)
-        elif self.config.provider == "custom":
-            raw = await self._custom_chat(messages, character_name)
-        else:
-            raise ValueError(f"Unsupported provider: {self.config.provider}")
+    async def chat(
+        self, messages: List[ChatMessage], character_name: str = "Rin"
+    ) -> LLMStructuredResponse:
+        try:
+            if self.config.provider == "deepseek":
+                raw = await self._deepseek_chat(messages, character_name)
+            elif self.config.provider == "openai":
+                raw = await self._openai_chat(messages, character_name)
+            elif self.config.provider == "anthropic":
+                raw = await self._anthropic_chat(messages, character_name)
+            elif self.config.provider == "custom":
+                raw = await self._custom_chat(messages, character_name)
+            else:
+                raise ValueError(f"Unsupported provider: {self.config.provider}")
 
-        parsed = self._parse_structured_response(raw)
-        return LLMStructuredResponse(
-            reply=parsed.get("reply", "").strip(),
-            emotion_map=parsed.get("emotion", {}) or {},
-            raw_text=raw,
-        )
+            parsed = self._parse_structured_response(raw)
+            return LLMStructuredResponse(
+                reply=parsed.get("reply", "").strip(),
+                emotion_map=parsed.get("emotion", {}) or {},
+                raw_text=raw,
+            )
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error calling {self.config.provider} API: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Error in LLM chat: {e}", exc_info=True)
+            raise
 
     # ------------------------------------------------------------------ #
     # Provider adapters
     # ------------------------------------------------------------------ #
-    async def _openai_chat(self, messages: List[ChatMessage], character_name: str) -> str:
+    async def _openai_chat(
+        self, messages: List[ChatMessage], character_name: str
+    ) -> str:
         base_url = self.config.base_url or "https://api.openai.com/v1"
 
         payload = {
@@ -74,7 +88,9 @@ class LLMClient:
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
-    async def _anthropic_chat(self, messages: List[ChatMessage], character_name: str) -> str:
+    async def _anthropic_chat(
+        self, messages: List[ChatMessage], character_name: str
+    ) -> str:
         base_url = self.config.base_url or "https://api.anthropic.com/v1"
 
         payload = {
@@ -97,7 +113,9 @@ class LLMClient:
         data = response.json()
         return data["content"][0]["text"]
 
-    async def _deepseek_chat(self, messages: List[ChatMessage], character_name: str) -> str:
+    async def _deepseek_chat(
+        self, messages: List[ChatMessage], character_name: str
+    ) -> str:
         base_url = self.config.base_url or "https://api.deepseek.com"
 
         payload = {
@@ -120,7 +138,9 @@ class LLMClient:
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
-    async def _custom_chat(self, messages: List[ChatMessage], character_name: str) -> str:
+    async def _custom_chat(
+        self, messages: List[ChatMessage], character_name: str
+    ) -> str:
         if not self.config.base_url:
             raise ValueError("base_url required for custom provider")
 
@@ -144,7 +164,9 @@ class LLMClient:
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
-    def _build_openai_messages(self, history: List[ChatMessage], character_name: str) -> List[Dict[str, str]]:
+    def _build_openai_messages(
+        self, history: List[ChatMessage], character_name: str
+    ) -> List[Dict[str, str]]:
         system_prompt = self._build_system_block(character_name)
 
         return [

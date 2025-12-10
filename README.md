@@ -4,7 +4,7 @@
 
 ## ✨ 功能特点
 
-- 🤖 **多LLM支持** - 支持OpenAI、Anthropic、DeepSeek及自定义OpenAI兼容API
+- 🤖 **多LLM支持** - 支持DeepSeek、OpenAI、Anthropic及自定义OpenAI兼容API
 - 🔌 **WebSocket实时通信** - 真正的实时双向通信架构
 - 💬 **消息持久化** - SQLite本地数据库存储，刷新页面不丢失消息
 - ⚙️ **配置集中化** - 统一配置管理，所有默认值集中定义
@@ -46,6 +46,7 @@
 ```
 
 **架构特点**:
+
 - 用户和Rin都是平等的客户端，通过消息服务器通信
 - 所有消息持久化到SQLite数据库
 - Rin客户端独立运行，根据时间戳执行行为序列
@@ -110,7 +111,7 @@ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 在配置面板中填入：
 
-- **Provider**: 选择 OpenAI/Anthropic/DeepSeek/Custom
+- **Provider**: 选择 DeepSeek/OpenAI/Anthropic/Custom
   - 🌟 **推荐国内用户**: DeepSeek (快速、便宜、中文好)
 - **API Key**: 你的API密钥
 - **Model**: 模型名称
@@ -149,6 +150,7 @@ python test_server.py
    - 如有错误信息，查看 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 3. **验证健康检查端点**
+
    ```bash
    curl http://localhost:8000/api/health
    ```
@@ -183,7 +185,7 @@ Rie-Kugimiya/
 │   └── utils/            # 工具函数
 ├── frontend/             # Web前端
 │   ├── index.html
-│   ├── chat_ws.js        # WebSocket客户端
+│   ├── app.js
 │   └── styles.css
 ├── data/                 # 数据目录
 │   └── messages.db       # SQLite数据库

@@ -7,10 +7,11 @@ class ChatApp {
         this.messageRefs = new Map();
         this.localMessages = this.loadLocalMessages();
         this.lastSyncTimestamp = this.getLastSyncTimestamp();
+        this.defaults = null;
 
         this.initElements();
         this.attachEventListeners();
-        this.loadSavedConfig();
+        this.initializeConfig();
     }
 
     loadOrCreateSessionId() {
@@ -96,13 +97,19 @@ class ChatApp {
             const isCustom = this.providerSelect.value === 'custom';
             this.baseUrlGroup.style.display = isCustom ? 'block' : 'none';
 
-            const defaults = {
-                'deepseek': 'deepseek-chat',
-                'openai': 'gpt-3.5-turbo',
-                'anthropic': 'claude-3-5-sonnet-20241022',
-                'custom': 'gpt-3.5-turbo'
-            };
-            this.modelInput.value = defaults[this.providerSelect.value];
+            // Use backend defaults if available
+            if (this.defaults && this.defaults.llm) {
+                const provider = this.providerSelect.value;
+                if (provider === 'deepseek') {
+                    this.modelInput.value = this.defaults.llm.model_deepseek;
+                } else if (provider === 'openai') {
+                    this.modelInput.value = this.defaults.llm.model_openai;
+                } else if (provider === 'anthropic') {
+                    this.modelInput.value = this.defaults.llm.model_anthropic;
+                } else if (provider === 'custom') {
+                    this.modelInput.value = this.defaults.llm.model_custom;
+                }
+            }
         });
 
         this.saveConfigBtn.addEventListener('click', () => this.saveConfig());
@@ -152,26 +159,102 @@ class ChatApp {
         });
     }
 
+    async initializeConfig() {
+        try {
+            // Fetch defaults from backend
+            const response = await fetch('/api/config/defaults');
+            if (response.ok) {
+                this.defaults = await response.json();
+            } else {
+                console.error('Failed to fetch defaults:', response.statusText);
+                // Fallback defaults if API fails
+                this.defaults = {
+                    llm: {
+                        provider: 'deepseek',
+                        model_deepseek: 'deepseek-chat',
+                        model_openai: 'gpt-3.5-turbo',
+                        model_anthropic: 'claude-3-5-sonnet-20241022',
+                        model_custom: 'gpt-3.5-turbo'
+                    },
+                    character: {
+                        name: 'Rin',
+                        persona: ''
+                    },
+                    ui: {
+                        enable_emotion_theme: true
+                    }
+                };
+            }
+        } catch (e) {
+            console.error('Error fetching defaults:', e);
+            this.defaults = {
+                llm: { provider: 'deepseek', model_deepseek: 'deepseek-chat' },
+                character: { name: 'Rin', persona: '' },
+                ui: { enable_emotion_theme: true }
+            };
+        }
+
+        // Load saved config or apply defaults
+        this.loadSavedConfig();
+    }
+
     loadSavedConfig() {
         const saved = localStorage.getItem('chatConfig');
         if (saved) {
             try {
                 const config = JSON.parse(saved);
-                this.providerSelect.value = config.provider || 'openai';
-                this.apiKeyInput.value = config.api_key || '';
-                this.baseUrlInput.value = config.base_url || '';
-                this.modelInput.value = config.model || 'gpt-3.5-turbo';
-                this.personaInput.value = config.persona || '';
-                this.characterNameInput.value = config.character_name || 'Rin';
-                if (this.emotionThemeToggle) {
-                    this.emotionThemeToggle.checked = config.enable_emotion_theme !== false;
-                }
-
-                this.providerSelect.dispatchEvent(new Event('change'));
+                this.applyConfig(config);
             } catch (e) {
                 console.error('Failed to load config:', e);
+                this.applyDefaults();
             }
+        } else {
+            this.applyDefaults();
         }
+    }
+
+    applyDefaults() {
+        if (!this.defaults) return;
+
+        this.providerSelect.value = this.defaults.llm.provider;
+        this.apiKeyInput.value = '';
+        this.baseUrlInput.value = '';
+
+        // Set model based on provider
+        const provider = this.defaults.llm.provider;
+        if (provider === 'deepseek') {
+            this.modelInput.value = this.defaults.llm.model_deepseek;
+        } else if (provider === 'openai') {
+            this.modelInput.value = this.defaults.llm.model_openai;
+        } else if (provider === 'anthropic') {
+            this.modelInput.value = this.defaults.llm.model_anthropic;
+        } else if (provider === 'custom') {
+            this.modelInput.value = this.defaults.llm.model_custom;
+        }
+
+        this.personaInput.value = this.defaults.character.persona;
+        this.characterNameInput.value = this.defaults.character.name;
+
+        if (this.emotionThemeToggle) {
+            this.emotionThemeToggle.checked = this.defaults.ui.enable_emotion_theme;
+        }
+
+        this.providerSelect.dispatchEvent(new Event('change'));
+    }
+
+    applyConfig(config) {
+        this.providerSelect.value = config.provider || (this.defaults?.llm.provider || 'deepseek');
+        this.apiKeyInput.value = config.api_key || '';
+        this.baseUrlInput.value = config.base_url || '';
+        this.modelInput.value = config.model || (this.defaults?.llm.model_deepseek || 'deepseek-chat');
+        this.personaInput.value = config.persona || (this.defaults?.character.persona || '');
+        this.characterNameInput.value = config.character_name || (this.defaults?.character.name || 'Rin');
+
+        if (this.emotionThemeToggle) {
+            this.emotionThemeToggle.checked = config.enable_emotion_theme !== false;
+        }
+
+        this.providerSelect.dispatchEvent(new Event('change'));
     }
 
     saveConfig() {
