@@ -1,6 +1,7 @@
 # LLM API client supporting multiple providers with structured JSON output
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
@@ -108,6 +109,7 @@ class LLMClient:
                         "model": self.config.model,
                         "messages": openai_style_messages,
                         "stream": False,
+                        "response_format": {"type": "json_object"},
                     }
                 elif self.config.provider == "custom":
                     payload_for_log["request"] = {
@@ -234,6 +236,7 @@ class LLMClient:
             "model": self.config.model,
             "messages": self._build_openai_messages(messages),
             "stream": False,
+            "response_format": {"type": "json_object"},
         }
 
         url = f"{base_url}/v1/chat/completions"
@@ -318,8 +321,26 @@ class LLMClient:
             try:
                 return json.loads(raw_text[start : end + 1])
             except Exception:
-                return {"reply": raw_text.strip(), "emotion": {}}
+                pass
 
+        # Emergency fallback: try to extract reply field value using regex
+        reply_match = re.search(r'"reply"\s*:\s*"([^"]*)"', raw_text)
+        if reply_match:
+            reply_text = reply_match.group(1)
+            logger.warning(
+                f"LLM JSON parse failed, extracted reply field: {reply_text[:100]}..."
+            )
+            return {"reply": reply_text, "emotion": {}}
+
+        # Last resort: check if raw_text looks like JSON (starts with {)
+        # If so, it's likely a malformed JSON - log error and return empty reply
+        if raw_text.strip().startswith("{"):
+            logger.error(
+                f"LLM returned malformed JSON, cannot extract reply: {raw_text[:200]}..."
+            )
+            return {"reply": "", "emotion": {"neutral": "low"}}
+
+        # Otherwise treat as plain text
         return {"reply": raw_text.strip(), "emotion": {}}
 
     def _normalize_emotion_map(self, parsed: Dict[str, Any]) -> Dict[str, str]:

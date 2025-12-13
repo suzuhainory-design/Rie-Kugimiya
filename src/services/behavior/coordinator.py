@@ -36,6 +36,17 @@ class BehaviorCoordinator:
         segments = self._segment_and_clean(cleaned_input)
         total_segments = len(segments)
 
+        # Safety check: prevent excessive segments (likely due to malformed input)
+        MAX_SEGMENTS = 20
+        if total_segments > MAX_SEGMENTS:
+            unified_logger.error(
+                f"Excessive segments detected ({total_segments}), truncating to {MAX_SEGMENTS}. "
+                f"Input preview: {cleaned_input[:200]}...",
+                category=LogCategory.BEHAVIOR,
+            )
+            segments = segments[:MAX_SEGMENTS]
+            total_segments = len(segments)
+
         actions: List[PlaybackAction] = []
         for index, segment_text in enumerate(segments):
             actions.extend(
