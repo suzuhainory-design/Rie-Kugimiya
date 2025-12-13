@@ -372,7 +372,7 @@ async def handle_init_rin(session_id: str, data: Dict[str, Any]):
         resolved_model = getattr(
             llm_defaults,
             f"model_{resolved_provider}",
-            llm_defaults.model_custom,
+            llm_defaults.model_deepseek,
         )
 
     resolved_api_key = llm_config_dict.get("api_key") or config.get("llm_api_key") or ""

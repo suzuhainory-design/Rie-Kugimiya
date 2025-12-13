@@ -23,10 +23,9 @@ class CharacterConfig(BaseSettings):
 
 class LLMDefaults(BaseSettings):
     provider: str = "deepseek"
-    model_openai: str = "gpt-3.5-turbo"
-    model_anthropic: str = "claude-3-5-sonnet-20241022"
+    model_openai: str = "gpt-5.1-chat"
+    model_anthropic: str = "claude-sonnet-4-5-20250929"
     model_deepseek: str = "deepseek-chat"
-    model_custom: str = "gpt-3.5-turbo"
 
     class Config:
         env_file = ".env"

@@ -10,7 +10,7 @@ DEFAULT_CONFIG = {
     "llm_model": getattr(
         llm_defaults,
         f"model_{llm_defaults.provider}",
-        llm_defaults.model_custom,
+        llm_defaults.model_deepseek,
     ),
     # Empty by default; UI can populate. Backend will warn if missing.
     "llm_api_key": "",
