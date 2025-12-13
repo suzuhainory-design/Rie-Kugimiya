@@ -211,7 +211,12 @@ class BehaviorCoordinator:
             type="send",
             text=corrected_text,
             message_id=self._generate_message_id(),
-            metadata={**base_metadata, "is_correction": True, "emotion": emotion.value},
+            metadata={
+                **base_metadata,
+                "is_correction": True,
+                "correction_for": typo_action.message_id,
+                "emotion": emotion.value,
+            },
         )
         recall_actions.append(correction_action)
         return recall_actions

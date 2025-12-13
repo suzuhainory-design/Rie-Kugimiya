@@ -219,6 +219,8 @@ class RinClient:
 
     async def _execute_timeline(self, timeline: List[PlaybackAction], session_id: str):
         start_time = datetime.now(timezone.utc).timestamp()
+        sent_timestamps_by_id: dict[str, float] = {}
+        recalled_target_ids: set[str] = set()
 
         log_entry = unified_logger.info(
             f"Executing timeline: {len(timeline)} actions",
@@ -252,24 +254,50 @@ class RinClient:
                     await self._broadcast_message(typing_msg)
 
                 elif action.type == "send":
+                    if action.metadata and action.metadata.get("is_correction") is True:
+                        correction_for = action.metadata.get("correction_for")
+                        if correction_for and correction_for not in recalled_target_ids:
+                            continue
+
                     messages = await self.message_service.send_message_with_time(
                         session_id=session_id,
                         sender_id=self.user_id,
                         message_type=MessageType.TEXT,
                         content=action.text,
                         metadata=action.metadata,
+                        message_id=action.message_id,
                     )
                     for message in messages:
                         await self._broadcast_message(message)
+                    if messages:
+                        last_msg = messages[-1]
+                        if last_msg and last_msg.id and last_msg.timestamp:
+                            sent_timestamps_by_id[str(last_msg.id)] = float(
+                                last_msg.timestamp
+                            )
 
                 elif action.type == "recall":
+                    if not action.target_id:
+                        continue
+
+                    target_id = str(action.target_id)
+                    target_ts = None
+                    if action.metadata:
+                        target_ts = action.metadata.get("target_timestamp")
+                    if not target_ts:
+                        target_ts = sent_timestamps_by_id.get(target_id)
+                    if not target_ts:
+                        original = await self.message_service.get_message(target_id)
+                        target_ts = original.timestamp if original else 0
+
                     recall_msg = await self.message_service.recall_message(
                         session_id=session_id,
-                        message_id=action.target_id,
-                        timestamp=action.metadata.get("target_timestamp", 0),
+                        message_id=target_id,
+                        timestamp=float(target_ts or 0),
                         recalled_by=self.user_id,
                     )
                     if recall_msg:
+                        recalled_target_ids.add(target_id)
                         await self._broadcast_message(recall_msg)
 
                 elif action.type == "wait":

@@ -49,6 +49,7 @@ class MessageService:
         message_type: MessageType,
         content: str,
         metadata: Dict = None,
+        message_id: Optional[str] = None,
     ) -> Message:
         messages = await self.send_message_with_time(
             session_id=session_id,
@@ -56,6 +57,7 @@ class MessageService:
             message_type=message_type,
             content=content,
             metadata=metadata,
+            message_id=message_id,
         )
         return messages[-1]
 
@@ -66,6 +68,7 @@ class MessageService:
         message_type: MessageType,
         content: str,
         metadata: Dict = None,
+        message_id: Optional[str] = None,
     ) -> List[Message]:
         """
         Send a message and, if needed, insert a system-time message before it.
@@ -78,7 +81,10 @@ class MessageService:
 
         time_msg = await self._insert_time_message_if_needed(session_id, timestamp)
 
-        message_id = f"msg-{uuid.uuid4().hex[:12]}"
+        if message_id is None:
+            message_id = f"msg-{uuid.uuid4().hex[:12]}"
+        else:
+            message_id = str(message_id).strip() or f"msg-{uuid.uuid4().hex[:12]}"
         message = Message(
             id=message_id,
             session_id=session_id,
