@@ -504,7 +504,6 @@ export function createApp() {
     const apiKey = config.llm_api_key;
     const model = config.llm_model;
     if (!provider || !apiKey || !model) return false;
-    if (provider === "custom" && !config.llm_base_url) return false;
     return true;
   }
 

@@ -16,6 +16,7 @@ from src.infrastructure.database.repositories import (
 from src.core.config import database_config
 from src.core.models.constants import DEFAULT_USER_ID
 from src.core.models.character import Character
+from src.utils.url_utils import sanitize_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -343,8 +344,10 @@ async def get_config():
 @router.post("/config")
 async def update_config(data: ConfigUpdate):
     await initialize_services()
-
-    success = await config_service.set_config(data.config)
+    config_updates = data.config.copy()
+    if "llm_base_url" in config_updates:
+        config_updates["llm_base_url"] = sanitize_base_url(config_updates.get("llm_base_url"))
+    success = await config_service.set_config(config_updates)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update config")
 

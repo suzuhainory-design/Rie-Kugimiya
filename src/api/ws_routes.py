@@ -22,6 +22,7 @@ from src.infrastructure.utils.logger import (
 )
 from src.core.config import database_config, llm_defaults
 from src.core.models.constants import DEFAULT_USER_ID
+from src.utils.url_utils import sanitize_base_url
 
 router = APIRouter()
 
@@ -389,11 +390,14 @@ async def handle_init_rin(session_id: str, data: Dict[str, Any]):
             level="warning",
         )
 
+    normalized_base_url = sanitize_base_url(
+        llm_config_dict.get("base_url") or config.get("llm_base_url")
+    )
     llm_config = LLMConfig(
         provider=resolved_provider,
         api_key=resolved_api_key,
         model=resolved_model,
-        base_url=llm_config_dict.get("base_url") or config.get("llm_base_url"),
+        base_url=normalized_base_url,
         persona=character.persona,
         character_name=character.name,
         user_nickname=llm_config_dict.get("user_nickname")

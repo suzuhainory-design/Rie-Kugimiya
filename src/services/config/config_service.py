@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     ),
     # Empty by default; UI can populate. Backend will warn if missing.
     "llm_api_key": "",
+    "llm_base_url": "",
     # Default user nickname used in prompts if not set in UI.
     "user_nickname": "鲨鲨",
     "enable_emotion_theme": str(ui_defaults.enable_emotion_theme).lower(),

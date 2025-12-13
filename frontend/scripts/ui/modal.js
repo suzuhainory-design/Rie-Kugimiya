@@ -17,6 +17,19 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeBaseUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    const path = (url.pathname || "").replace(/\/+$/, "");
+    return `${url.origin}${path}`;
+  } catch {
+    return "";
+  }
+}
+
 async function getBehaviorSchema() {
   if (behaviorSchemaCache) return behaviorSchemaCache;
   try {
@@ -131,7 +144,7 @@ function getSettingsContent() {
   const provider = state.config.llm_provider || "deepseek";
   const apiKey = state.config.llm_api_key || "";
   const model = state.config.llm_model || "";
-  const baseUrl = state.config.llm_base_url || "";
+  const baseUrl = normalizeBaseUrl(state.config.llm_base_url) || "";
   const nickname = state.config.user_nickname || "";
   const emotionTheme = state.config.enable_emotion_theme !== "false";
   const debugMode = state.debugEnabled === true;
@@ -150,9 +163,6 @@ function getSettingsContent() {
           <option value="anthropic" ${
             provider === "anthropic" ? "selected" : ""
           }>Anthropic</option>
-          <option value="custom" ${
-            provider === "custom" ? "selected" : ""
-          }>自定义</option>
         </select>
       </div>
       <div class="form-group">
@@ -164,8 +174,16 @@ function getSettingsContent() {
         <input id="settingsModel" type="text" value="${model}" placeholder="必填" />
       </div>
       <div class="form-group">
-        <label>Base URL（仅自定义）</label>
-        <input id="settingsBaseUrl" type="text" value="${baseUrl}" placeholder="https://..." />
+        <label>Base URL（可选覆盖服务商域名）</label>
+        <input
+          id="settingsBaseUrl"
+          type="text"
+          value="${baseUrl}"
+          placeholder="https://example.com/proxy"
+        />
+        <div class="help-text">
+          留空或填写格式非法不会改变默认 URL，填写合法 http/https 地址则强制替换服务商的域名部分。
+        </div>
       </div>
       <div class="form-group">
         <label>用户昵称</label>
@@ -204,7 +222,7 @@ async function saveSettings(modal) {
   const provider = modal.querySelector("#settingsProvider")?.value;
   const apiKey = modal.querySelector("#settingsApiKey")?.value?.trim();
   const model = modal.querySelector("#settingsModel")?.value?.trim();
-  const baseUrl = modal.querySelector("#settingsBaseUrl")?.value?.trim();
+  const rawBaseUrl = modal.querySelector("#settingsBaseUrl")?.value?.trim();
   const nickname = modal.querySelector("#settingsNickname")?.value?.trim();
   const emotionTheme = modal.querySelector("#settingsEmotionTheme")?.checked;
   const debugMode = modal.querySelector("#settingsDebugMode")?.checked;
@@ -217,9 +235,9 @@ async function saveSettings(modal) {
     showToast("服务商、API Key 和模型为必填项。", "error");
     return false;
   }
-  if (provider === "custom" && !baseUrl) {
-    showToast("自定义服务商需要填写 Base URL。", "error");
-    return false;
+  const baseUrl = normalizeBaseUrl(rawBaseUrl);
+  if (rawBaseUrl && !baseUrl) {
+    showToast("Base URL 格式非法，将回退为默认服务商域名。", "warning");
   }
 
   state.config.llm_provider = provider;
