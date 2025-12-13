@@ -220,10 +220,21 @@ class BehaviorCoordinator:
 
     @staticmethod
     def _trim_trailing_punctuation(text: str) -> str:
-        trimmed = text.strip()
-        while trimmed and trimmed[-1] in {",", "，", "。"}:
-            trimmed = trimmed[:-1].rstrip()
-        return trimmed
+        if not text:
+            return text
+
+        trimmed = text.rstrip()
+        punctuations = {",", "，", "。"}
+        i = len(trimmed) - 1
+
+        count = 0
+        while i >= 0 and trimmed[i] in punctuations:
+            count += 1
+            i -= 1
+
+        if count == 1:
+            return trimmed[: i + 1].rstrip()
+        return text
 
     @staticmethod
     def _generate_message_id() -> str:
