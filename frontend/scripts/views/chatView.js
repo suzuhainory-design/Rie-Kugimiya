@@ -30,6 +30,7 @@ function applyAvatar(img, src, fallback) {
 
 export function setWsClient(client) {
   wsClient = client;
+  setupInputHandlers();
 }
 
 export function refreshVisibleAvatars() {

@@ -122,11 +122,11 @@ function buildSessionItem(session, character) {
     if (switching) {
       setActiveSessionId(session.id);
     }
+    window.dispatchEvent(new CustomEvent("active-session-changed"));
     showChatView();
     ensureChatSessionContainer(session.id);
     showChatSession(session.id, true);
     saveStateToStorage();
-    window.dispatchEvent(new CustomEvent("active-session-changed"));
   });
 
   return div;
