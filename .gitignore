@@ -3,7 +3,7 @@
 .pytest_cache/
 **/__pycache__/
 
-assets/models/intent_predictor/
+assets/models/intent_predictor/model.safetensors
 
 *.db
 
